@@ -13,42 +13,11 @@ import os
 from yt_dlp import YoutubeDL
 
 
-# Function to convert cookies into Netscape format for yt-dlp
-def convert_to_netscape(cookies_file):
-    # Check if the cookie file is in JSON format
-    if cookies_file.name.endswith('.json'):
-        cookies_data = json.load(cookies_file)
-
-        # Convert JSON data to Netscape format
-        netscape_cookies = []
-        for cookie in cookies_data:
-            netscape_cookies.append(
-                f"{cookie['domain']}\t{cookie['httpOnly']}\t{cookie['secure']}\t{cookie['expirationDate']}\t{cookie['name']}\t{cookie['value']}")
-
-        # Write the Netscape cookies to a temporary file
-        netscape_filename = os.path.join(os.path.dirname(cookies_file.name), "cookies_netscape.txt")
-        with open(netscape_filename, "w") as netscape_file:
-            for cookie in netscape_cookies:
-                netscape_file.write(f"{cookie}\n")
-
-        return netscape_filename
-
-    # If it's not JSON, let's try the normal approach for txt (assuming it's already in Netscape format)
-    elif cookies_file.name.endswith('.txt'):
-        return cookies_file.name  # Assuming the txt file is already in Netscape format
-
-    else:
-        raise ValueError("Unsupported cookie file format. Please upload a .json or .txt file.")
-
-
 # Function to download a YouTube video using yt-dlp and a cookie file
-def download_video(url, cookie_file):
-    # Convert cookies to Netscape format if needed
-    cookie_file_path = convert_to_netscape(cookie_file)
+def download_video(url):
 
     # Set up yt-dlp options
     ydl_opts = {
-        'cookiefile': cookie_file_path,  # Path to your cookie file
         'outtmpl': '%(title)s.%(ext)s',  # Output file name pattern
     }
 
@@ -211,7 +180,6 @@ def main():
     st.title("🎬 Video and Playlist Processor")
 
     input_urls = st.text_input("Enter YouTube Playlist(s) or Video URL(s) or both (comma-separated):")
-    cookie_file = st.file_uploader("Upload Your Cookie File (txt, json, or netscape format):", type=['txt', 'json'])
 
     if 'stored_transcripts' not in st.session_state:
         st.session_state.stored_transcripts = []
@@ -272,7 +240,7 @@ def main():
         st.subheader("Relevant Output for Your Query")
         st.text_area("Query Output", st.session_state.query_output, height=300, key="query_output_area")
 
-    if cookie_file and input_urls:
+    if input_urls:
         with col1:
             if st.button("Download Video(s)"):
                 progress_bar = col2.progress(0, text="Starting video download. Please hold...")
@@ -281,7 +249,7 @@ def main():
                 for url in input_urls.split(","):
                     url = url.strip()
                     status_text.text(f"Downloading video from {url}...")
-                    download_status = download_video(url, cookie_file)
+                    download_status = download_video(url)
                     progress_bar.progress(100)
                     status_text.text(download_status)
                     if "successfully" in download_status:
