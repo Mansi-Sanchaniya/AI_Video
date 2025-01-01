@@ -13,21 +13,19 @@ import os
 from yt_dlp import YoutubeDL
 
 
-# Function to convert JSON cookies to Netscape format
 def convert_json_to_netscape(json_cookies):
     netscape_cookies = []
     for cookie in json_cookies:
-        # Prepare Netscape formatted cookies
         try:
             domain = cookie.get('domain', '')
-            flag = 'TRUE' if cookie.get('secure', False) else 'FALSE'  # Secure flag is converted to TRUE/FALSE
+            flag = 'TRUE' if cookie.get('secure', False) else 'FALSE'
             path = cookie.get('path', '/')
-            secure = 'TRUE' if cookie.get('secure', False) else 'FALSE'  # Secure flag
-            expiration_date = str(cookie.get('expirationDate', '0'))  # Default to '0' if not available
+            secure = 'TRUE' if cookie.get('secure', False) else 'FALSE'
+            expiration_date = str(cookie.get('expirationDate', 0))  # Ensure numeric expiration date
             name = cookie.get('name', '')
             value = cookie.get('value', '')
 
-            # Correctly format the Netscape cookie line
+            # Format the line according to the Netscape format
             netscape_cookies.append(
                 f"{domain}\t{flag}\t{path}\t{secure}\t{expiration_date}\t{name}\t{value}\n"
             )
@@ -37,6 +35,7 @@ def convert_json_to_netscape(json_cookies):
 
     print(netscape_cookies)
     return netscape_cookies
+
 
 
 # Function to convert cookies to Netscape format if not already
