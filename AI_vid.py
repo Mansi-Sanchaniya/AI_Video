@@ -13,6 +13,23 @@ import os
 from yt_dlp import YoutubeDL
 
 
+# Function to convert JSON cookies to Netscape format
+def convert_json_to_netscape(json_cookies):
+    netscape_cookies = []
+    for cookie in json_cookies:
+        # Prepare Netscape formatted cookies
+        # Note: These values should match the required Netscape format
+        netscape_cookies.append(
+            f"{cookie.get('domain', '')}\t"         # Domain
+            f"{cookie.get('flag', False)}\t"        # Whether cookie is secure
+            f"{cookie.get('path', '/')} \t"         # Path
+            f"{cookie.get('secure', False)}\t"      # Secure flag
+            f"{cookie.get('expiration', '')}\t"    # Expiration date
+            f"{cookie.get('name', '')}\t"           # Cookie name
+            f"{cookie.get('value', '')}\n"          # Cookie value
+        )
+    return netscape_cookies
+
 # Function to convert cookies to Netscape format if not already
 def convert_to_netscape(cookie_file):
     cookies = None
@@ -27,35 +44,22 @@ def convert_to_netscape(cookie_file):
         f.write(cookie_file.getbuffer())
 
     # Check the file extension to determine the format
-    if cookie_file.name.endswith('.json'):  # Check the file name, not the object
+    if cookie_file.name.endswith('.json'):  # If it's a JSON file
         with open(temp_cookie_path, 'r') as f:
             cookies = json.load(f)
-    elif cookie_file.name.endswith('.txt'):  # Check the file name, not the object
+        netscape_cookies = convert_json_to_netscape(cookies)
+    elif cookie_file.name.endswith('.txt'):  # If it's already Netscape format
         with open(temp_cookie_path, 'r') as f:
-            cookies = f.readlines()
+            netscape_cookies = f.readlines()
     else:
         raise ValueError("Unsupported cookie file format")
 
-    # Check if the cookies are already in Netscape format
-    if isinstance(cookies, list):  # This is Netscape format
-        netscape_file_path = os.path.join(temp_dir, "cookies_netscape.txt")
-        with open(netscape_file_path, "w") as f:
-            f.writelines(cookies)
-        return netscape_file_path
-    else:  # If in JSON format, convert to Netscape format
-        netscape_cookies = []
-        for cookie in cookies:
-            # Manually convert the JSON cookie format to Netscape format
-            netscape_cookies.append(
-                f"{cookie['domain']}\t{cookie['flag']}\t{cookie['path']}\t{cookie['secure']}\t"
-                f"{cookie['expiration']}\t{cookie['name']}\t{cookie['value']}\n"
-            )
-        netscape_file_path = os.path.join(temp_dir, "cookies_netscape.txt")
-        with open(netscape_file_path, "w") as f:
-            f.writelines(netscape_cookies)
-        return netscape_file_path
-
-
+    # Save the converted Netscape cookies to a new file
+    netscape_file_path = os.path.join(temp_dir, "cookies_netscape.txt")
+    with open(netscape_file_path, "w") as f:
+        f.writelines(netscape_cookies)
+    
+    return netscape_file_path
 
 # Function to download a YouTube video using yt-dlp and a cookie file
 def download_video(url, cookie_file):
@@ -75,6 +79,7 @@ def download_video(url, cookie_file):
             st.success("Video downloaded successfully!")
         except Exception as e:
             st.error(f"Error downloading video: {str(e)}")
+
 
 # Function to get video URLs from multiple playlists or individual video links
 def get_video_urls_multiple(input_urls):
