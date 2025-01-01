@@ -13,50 +13,60 @@ import io
 # Function to convert cookies to Netscape format if not already
 def convert_to_netscape(cookie_file):
     cookies = None
-    # Read the uploaded file content directly into memory (in memory file)
-    cookie_content = cookie_file.getvalue()
+    # Save the uploaded file temporarily
+    temp_cookie_path = os.path.join("temp", cookie_file.name)
+    with open(temp_cookie_path, 'wb') as f:
+        f.write(cookie_file.getbuffer())
 
     # Check the file extension to determine the format
     if cookie_file.name.endswith('.json'):  # Check the file name, not the object
-        cookies = json.loads(cookie_content)
+        with open(temp_cookie_path, 'r') as f:
+            cookies = json.load(f)
     elif cookie_file.name.endswith('.txt'):  # Check the file name, not the object
-        cookies = cookie_content.decode('utf-8').splitlines()
+        with open(temp_cookie_path, 'r') as f:
+            cookies = f.readlines()
     else:
         raise ValueError("Unsupported cookie file format")
 
     # Check if the cookies are already in Netscape format
-    if isinstance(cookies, list):
-        # Use the in-memory content as is
-        return cookie_content
-    else:
-        # If in JSON format, convert to Netscape format
+    if isinstance(cookies, list):  # This is Netscape format
+        netscape_file_path = "cookies_netscape.txt"
+        with open(netscape_file_path, "w") as f:
+            f.writelines(cookies)
+        return netscape_file_path
+    else:  # If in JSON format, convert to Netscape format
         netscape_cookies = []
         for cookie in cookies:
+            # Manually convert the JSON cookie format to Netscape format
             netscape_cookies.append(
-                f"{cookie['domain']}\t{cookie['flag']}\t{cookie['path']}\t{cookie['secure']}\t{cookie['expiration']}\t{cookie['name']}\t{cookie['value']}\n")
+                f"{cookie['domain']}\t{cookie['flag']}\t{cookie['path']}\t{cookie['secure']}\t"
+                f"{cookie['expiration']}\t{cookie['name']}\t{cookie['value']}\n"
+            )
+        netscape_file_path = "cookies_netscape.txt"
+        with open(netscape_file_path, "w") as f:
+            f.writelines(netscape_cookies)
+        return netscape_file_path
 
-        return "\n".join(netscape_cookies).encode('utf-8')
 
 
 # Function to download a YouTube video using yt-dlp and a cookie file
 def download_video(url, cookie_file):
     # Convert cookies to Netscape format if needed
-    cookie_data = convert_to_netscape(cookie_file)
+    cookie_file_path = convert_to_netscape(cookie_file)
 
     # Set up yt-dlp options
     ydl_opts = {
-        'cookiefile': io.BytesIO(cookie_data),  # Use BytesIO to pass the in-memory cookie file
+        'cookiefile': cookie_file_path,  # Path to your cookie file
         'outtmpl': '%(title)s.%(ext)s',  # Output file name pattern
     }
 
     # Use yt-dlp to download the video
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+    with YoutubeDL(ydl_opts) as ydl:
         try:
             ydl.download([url])
             st.success("Video downloaded successfully!")
         except Exception as e:
             st.error(f"Error downloading video: {str(e)}")
-
 
 # Function to get video URLs from multiple playlists or individual video links
 def get_video_urls_multiple(input_urls):
@@ -160,33 +170,6 @@ def process_query(query, stored_transcripts, threshold=0.3):  # Adjusted thresho
             relevant_sections.append(corpus[idx])
 
     return relevant_sections
-
-
-
-
-def extract_clip_with_ffmpeg(video_file, start_time, end_time, ffmpeg_location):
-    try:
-        temp_output = f"temp_{start_time}_{end_time}.mp4"
-        # Extract both video and audio while ensuring proper sync
-        subprocess.run(
-            [ffmpeg_location, "-i", video_file, "-ss", str(start_time), "-to", str(end_time),
-             "-c:v", "libx264", "-c:a", "aac", "-strict", "experimental", "-async", "1", temp_output],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        return temp_output
-    except Exception as e:
-        print(f"Error extracting clip: {e}")
-        return None
-
-
-def merge_clips_with_ffmpeg(clips, output_file, ffmpeg_location):
-    with open("temp_clips.txt", "w") as file:
-        for clip in clips:
-            file.write(f"file '{clip}'\n")
-
-    # Merge clips and ensure that audio-video sync is preserved
-    subprocess.run([ffmpeg_location, "-f", "concat", "-safe", "0", "-i", "temp_clips.txt",
-                    "-c:v", "libx264", "-c:a", "aac", "-strict", "experimental", "-async", "1", output_file],
-                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
 # Simulating your process functions for this demonstration
