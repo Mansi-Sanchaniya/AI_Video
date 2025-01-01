@@ -21,7 +21,7 @@ def convert_json_to_netscape(json_cookies):
             flag = 'TRUE' if cookie.get('secure', False) else 'FALSE'
             path = cookie.get('path', '/')
             secure = 'TRUE' if cookie.get('secure', False) else 'FALSE'
-            expiration_date = str(cookie.get('expirationDate', 0))  # Ensure numeric expiration date
+            expiration_date = str(int(cookie.get('expirationDate', 0)))  # Ensure numeric expiration date
             name = cookie.get('name', '')
             value = cookie.get('value', '')
 
