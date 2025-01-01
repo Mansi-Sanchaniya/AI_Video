@@ -15,6 +15,7 @@ from yt_dlp import YoutubeDL
 
 # Function to download a YouTube video using yt-dlp and a cookie file
 def download_video(url):
+    download_status = ""  # Initialize download_status to avoid referencing undefined variable
 
     # Set up yt-dlp options
     ydl_opts = {
@@ -25,9 +26,15 @@ def download_video(url):
     with YoutubeDL(ydl_opts) as ydl:
         try:
             ydl.download([url])
-            st.success("Video downloaded successfully!")
+            download_status = "Video downloaded successfully!"  # Set the success status
+            st.success(download_status)  # Display success message
         except Exception as e:
-            st.error(f"Error downloading video: {str(e)}")
+            download_status = f"Error downloading video: {str(e)}"  # Set the error message
+            st.error(download_status)  # Display error message
+
+    return download_status  # Return the status for further checking if needed
+
+
 
 
 # Function to get video URLs from multiple playlists or individual video links
@@ -253,9 +260,9 @@ def main():
                     progress_bar.progress(100)
                     status_text.text(download_status)
                     if "successfully" in download_status:
-                        st.success(f"Downloaded: {url}")
+                        st.success(f"Downloaded successfully: {url}")
                     else:
-                        st.error(f"Failed to download: {url}")
+                        st.error(f"Error: {download_status}")
 
 if __name__ == "__main__":
     main()
