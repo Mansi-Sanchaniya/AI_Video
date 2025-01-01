@@ -11,11 +11,17 @@ import json
 import io
 import os
 
+
 # Function to convert cookies to Netscape format if not already
 def convert_to_netscape(cookie_file):
     cookies = None
+    # Create temp directory if it doesn't exist
+    temp_dir = "temp"
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
+
     # Save the uploaded file temporarily
-    temp_cookie_path = os.path.join("temp", cookie_file.name)
+    temp_cookie_path = os.path.join(temp_dir, cookie_file.name)
     with open(temp_cookie_path, 'wb') as f:
         f.write(cookie_file.getbuffer())
 
@@ -31,7 +37,7 @@ def convert_to_netscape(cookie_file):
 
     # Check if the cookies are already in Netscape format
     if isinstance(cookies, list):  # This is Netscape format
-        netscape_file_path = "cookies_netscape.txt"
+        netscape_file_path = os.path.join(temp_dir, "cookies_netscape.txt")
         with open(netscape_file_path, "w") as f:
             f.writelines(cookies)
         return netscape_file_path
@@ -43,7 +49,7 @@ def convert_to_netscape(cookie_file):
                 f"{cookie['domain']}\t{cookie['flag']}\t{cookie['path']}\t{cookie['secure']}\t"
                 f"{cookie['expiration']}\t{cookie['name']}\t{cookie['value']}\n"
             )
-        netscape_file_path = "cookies_netscape.txt"
+        netscape_file_path = os.path.join(temp_dir, "cookies_netscape.txt")
         with open(netscape_file_path, "w") as f:
             f.writelines(netscape_cookies)
         return netscape_file_path
