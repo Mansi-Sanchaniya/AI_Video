@@ -10,6 +10,7 @@ import time
 import json
 import io
 import os
+from yt_dlp import YoutubeDL
 
 
 # Function to convert cookies to Netscape format if not already
