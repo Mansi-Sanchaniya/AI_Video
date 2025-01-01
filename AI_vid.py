@@ -18,17 +18,26 @@ def convert_json_to_netscape(json_cookies):
     netscape_cookies = []
     for cookie in json_cookies:
         # Prepare Netscape formatted cookies
-        # Note: These values should match the required Netscape format
-        netscape_cookies.append(
-            f"{cookie.get('domain', '')}\t"         # Domain
-            f"{cookie.get('flag', False)}\t"        # Whether cookie is secure
-            f"{cookie.get('path', '/')} \t"         # Path
-            f"{cookie.get('secure', False)}\t"      # Secure flag
-            f"{cookie.get('expiration', '')}\t"    # Expiration date
-            f"{cookie.get('name', '')}\t"           # Cookie name
-            f"{cookie.get('value', '')}\n"          # Cookie value
-        )
+        try:
+            domain = cookie.get('domain', '')
+            flag = 'TRUE' if cookie.get('secure', False) else 'FALSE'  # Secure flag is converted to TRUE/FALSE
+            path = cookie.get('path', '/')
+            secure = 'TRUE' if cookie.get('secure', False) else 'FALSE'  # Secure flag
+            expiration_date = str(cookie.get('expirationDate', '0'))  # Default to '0' if not available
+            name = cookie.get('name', '')
+            value = cookie.get('value', '')
+
+            # Correctly format the Netscape cookie line
+            netscape_cookies.append(
+                f"{domain}\t{flag}\t{path}\t{secure}\t{expiration_date}\t{name}\t{value}\n"
+            )
+        except KeyError as e:
+            print(f"Missing key in cookie: {e}")
+            continue
+
+    print(netscape_cookies)
     return netscape_cookies
+
 
 # Function to convert cookies to Netscape format if not already
 def convert_to_netscape(cookie_file):
