@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import json
 import io
+import os
 
 # Function to convert cookies to Netscape format if not already
 def convert_to_netscape(cookie_file):
