@@ -1,14 +1,62 @@
 import streamlit as st
 import yt_dlp
-from pytube import Playlist, YouTube
+from pytube import Playlist
 from sklearn.metrics.pairwise import cosine_similarity
 from youtube_transcript_api import YouTubeTranscriptApi
 from sklearn.feature_extraction.text import TfidfVectorizer
-import numpy as np
-import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
+import json
+import io
+
+# Function to convert cookies to Netscape format if not already
+def convert_to_netscape(cookie_file):
+    cookies = None
+    # Read the uploaded file content directly into memory (in memory file)
+    cookie_content = cookie_file.getvalue()
+
+    # Check the file extension to determine the format
+    if cookie_file.name.endswith('.json'):  # Check the file name, not the object
+        cookies = json.loads(cookie_content)
+    elif cookie_file.name.endswith('.txt'):  # Check the file name, not the object
+        cookies = cookie_content.decode('utf-8').splitlines()
+    else:
+        raise ValueError("Unsupported cookie file format")
+
+    # Check if the cookies are already in Netscape format
+    if isinstance(cookies, list):
+        # Use the in-memory content as is
+        return cookie_content
+    else:
+        # If in JSON format, convert to Netscape format
+        netscape_cookies = []
+        for cookie in cookies:
+            netscape_cookies.append(
+                f"{cookie['domain']}\t{cookie['flag']}\t{cookie['path']}\t{cookie['secure']}\t{cookie['expiration']}\t{cookie['name']}\t{cookie['value']}\n")
+
+        return "\n".join(netscape_cookies).encode('utf-8')
+
+
+# Function to download a YouTube video using yt-dlp and a cookie file
+def download_video(url, cookie_file):
+    # Convert cookies to Netscape format if needed
+    cookie_data = convert_to_netscape(cookie_file)
+
+    # Set up yt-dlp options
+    ydl_opts = {
+        'cookiefile': io.BytesIO(cookie_data),  # Use BytesIO to pass the in-memory cookie file
+        'outtmpl': '%(title)s.%(ext)s',  # Output file name pattern
+    }
+
+    # Use yt-dlp to download the video
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        try:
+            ydl.download([url])
+            st.success("Video downloaded successfully!")
+        except Exception as e:
+            st.error(f"Error downloading video: {str(e)}")
+
 
 # Function to get video URLs from multiple playlists or individual video links
 def get_video_urls_multiple(input_urls):
@@ -187,6 +235,7 @@ def main():
     st.title("🎬 Video and Playlist Processor")
 
     input_urls = st.text_input("Enter YouTube Playlist(s) or Video URL(s) or both (comma-separated):")
+    cookie_file = st.file_uploader("Upload Your Cookie File (txt, json, or netscape format):", type=['txt', 'json'])
 
     if 'stored_transcripts' not in st.session_state:
         st.session_state.stored_transcripts = []
@@ -247,6 +296,22 @@ def main():
         st.subheader("Relevant Output for Your Query")
         st.text_area("Query Output", st.session_state.query_output, height=300, key="query_output_area")
 
+    if cookie_file and input_urls:
+        with col1:
+            if st.button("Download Video(s)"):
+                progress_bar = col2.progress(0, text="Starting video download. Please hold...")
+                status_text = col2.empty()  # Placeholder for dynamic status updates
+
+                for url in input_urls.split(","):
+                    url = url.strip()
+                    status_text.text(f"Downloading video from {url}...")
+                    download_status = download_video(url, cookie_file)
+                    progress_bar.progress(100)
+                    status_text.text(download_status)
+                    if "successfully" in download_status:
+                        st.success(f"Downloaded: {url}")
+                    else:
+                        st.error(f"Failed to download: {url}")
 
 if __name__ == "__main__":
     main()
