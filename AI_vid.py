@@ -23,7 +23,7 @@ def convert_to_netscape(cookies_file):
         netscape_cookies = []
         for cookie in cookies_data:
             netscape_cookies.append(
-                f"{cookie['domain']}\t{cookie['httpOnly']}\t{cookie['secure']}\t{cookie['expiry']}\t{cookie['name']}\t{cookie['value']}")
+                f"{cookie['domain']}\t{cookie['httpOnly']}\t{cookie['secure']}\t{cookie['expirationDate']}\t{cookie['name']}\t{cookie['value']}")
 
         # Write the Netscape cookies to a temporary file
         netscape_filename = os.path.join(os.path.dirname(cookies_file.name), "cookies_netscape.txt")
