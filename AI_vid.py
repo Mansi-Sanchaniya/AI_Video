@@ -171,19 +171,36 @@ def process_transcripts(input_urls, progress_bar, status_text):
     return "Transcripts Extracted!"  # Once complete
 
 
-import re
-import cv2
-import os
-import subprocess
-
 def extract_timestamps_from_section(section):
-    """Extract start and end times from a section string in the format [2.76s - 4.55s]."""
-    match = re.search(r"\[(\d+\.\d+)s\s*-\s*(\d+\.\d+)s\]", section)
-    if match:
-        start_time = float(match.group(1))
-        end_time = float(match.group(2))
+    try:
+        # Strip any leading/trailing whitespaces
+        section = section.strip()
+
+        # Check if the section contains timestamp information in the correct format
+        if '[' not in section or ']' not in section:
+            return None  # Skip sections that do not contain timestamps in '[start_time - end_time]' format
+
+        # Extract the timestamp part of the section (the part inside the brackets)
+        timestamp_part = section[section.find('[') + 1:section.find(']')].strip()  # Extract content inside brackets
+        times = timestamp_part.split(" - ")
+
+        # Ensure two timestamps are found in the section
+        if len(times) != 2:
+            return None  # Return None to skip this section
+
+        # Clean timestamps and remove any unnecessary decimal precision
+        start_time = float(times[0].strip().replace("s", ""))
+        end_time = float(times[1].strip().replace("s", ""))
+
+        # Round to a reasonable precision (e.g., 2 decimal places)
+        start_time = round(start_time, 2)
+        end_time = round(end_time, 2)
+
         return start_time, end_time
-    return None
+    except Exception as e:
+        print(f"Error extracting timestamps from section '{section}'. Exception: {e}")
+        return None  # Return None in case of an error
+
 
 # Function to clip and merge videos based on the timestamps (without ffmpeg)
 def clip_and_merge_videos(segments, video_path, output_filename):
