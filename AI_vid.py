@@ -165,6 +165,53 @@ def process_transcripts(input_urls, progress_bar, status_text):
 
     return "Transcripts Extracted!"  # Once complete
 
+def clip_and_merge_videos(segments, output_path):
+    temp_clips = []
+
+    for video_path, (start, end, _) in segments:
+        cap = cv2.VideoCapture(video_path)
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        temp_output = f"temp_clip_{len(temp_clips)}.mp4"
+
+        out = None
+        frame_idx = 0
+
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            current_time = frame_idx / fps
+            if start <= current_time <= end:
+                if out is None:
+                    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    out = cv2.VideoWriter(temp_output, fourcc, fps, (frame_width, frame_height))
+                out.write(frame)
+
+            frame_idx += 1
+            if current_time > end:
+                break
+
+        cap.release()
+        if out:
+            out.release()
+            temp_clips.append(temp_output)
+
+    # Merge all clips
+    if temp_clips:
+        merge_command = ["ffmpeg", "-y"]
+        for clip in temp_clips:
+            merge_command += ["-i", clip]
+        merge_command += ["-filter_complex", f"concat=n={len(temp_clips)}:v=1:a=1", output_path]
+
+        os.system(' '.join(merge_command))
+        for clip in temp_clips:
+            os.remove(clip)
+
+    return output_path
+
 def main():
     st.set_page_config(page_title="Video & Playlist Processor", page_icon="🎬", layout="wide")
 
@@ -274,6 +321,14 @@ def main():
                             st.video(downloaded_video_path)
                     else:
                         st.error(f"Failed to download: {url}")
+
+    if st.button("Combine and Play"):
+        if 'relevant_segments' in st.session_state:
+            output_video_path = "output_video.mp4"
+            final_path = clip_and_merge_videos(st.session_state.relevant_segments, output_video_path)
+            st.video(final_path)
+        else:
+            st.error("No segments to combine. Process a query first.")
 
 if __name__ == "__main__":
     main()
