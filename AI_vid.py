@@ -241,9 +241,6 @@ def clip_and_merge_videos(segments, video_path, output_filename):
         url, start_time, end_time = segment
         st.text(f"URL: {url}, Start: {start_time}s, End: {end_time}s")
 
-        if not os.path.exists(video_path):
-            print(f"Error: The video file does not exist at {video_path}")
-            return
         # Open the video using OpenCV
         cap = cv2.VideoCapture(video_path)
         fps = int(cap.get(cv2.CAP_PROP_FPS))
