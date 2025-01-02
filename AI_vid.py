@@ -265,7 +265,7 @@ def main():
                 for url in input_urls.split(","):
                     url = url.strip()
                     status_text.text(f"Downloading video from {url}...")
-                    download_status = download_video(url)
+                    download_status, downloaded_video_path = download_video(url)
                     progress_bar.progress(100)
                     status_text.text(download_status)
                     if "successfully" in download_status:
