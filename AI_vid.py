@@ -238,6 +238,7 @@ def clip_and_merge_videos(segments, video_path, output_filename):
     for segment in segments:
         # Extract the video URL, start and end times
         url, start_time, end_time = segment
+        st.text(f"{url} {start_time} {end_time}")
 
         # Open the video using OpenCV
         cap = cv2.VideoCapture(url)
@@ -258,6 +259,7 @@ def clip_and_merge_videos(segments, video_path, output_filename):
 
             # Get the current time in seconds from the frame index
             current_time = frame_idx / fps
+            st.text(f"current time: {current_time}")
 
             # Check if the current time falls within the segment's start and end times
             if start_time <= current_time <= end_time:
