@@ -356,7 +356,6 @@ def clip_and_merge_videos(segments, video_path, output_filename):
 
 def main():
     st.set_page_config(page_title="Video & Playlist Processor", page_icon="🎬", layout="wide")
-    delete_temp_files()
     
     st.markdown("""
     <style>
