@@ -122,7 +122,7 @@ def process_input(input_urls):
 
 # Function to process the query and extract relevant transcript segments
 def process_query(query, stored_transcripts, threshold=0.3):  # Adjusted threshold for more precise results
-    logging.info("Entered processs query function")
+    st.text("Entered processs query function")
     if not query:
         st.warning("Please enter a query to search in the transcripts.")
         return []
@@ -187,24 +187,24 @@ def extract_timestamps_from_section(section):
 
 # Function to clip and merge videos based on the timestamps (without ffmpeg)
 def clip_and_merge_videos(segments, video_path, output_filename):
-    logging.info("Entered clip_and_merge_videos function")
+    st.text("Entered clip_and_merge_videos function")
     temp_dir = "temp_videos"  # Name of the temporary directory
 
     # Create the directory if it doesn't exist
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)  # Create the directory
-        logging.info(f"Created temporary directory: {temp_dir}")
+        st.text(f"Created temporary directory: {temp_dir}")
 
     # Full output path for the final video
     output_path = os.path.join(temp_dir, output_filename)
     temp_clips = []
-    logging.info(f"Type of st.session_state.query_output: {type(segments)}")
-    logging.info(f"Value of st.session_state.query_output: {segments}")
+    st.write(f"Type of st.session_state.query_output: {type(segments)}")
+    st.write(f"Value of st.session_state.query_output: {segments}")
     for section in segments:
         # Extract the start and end timestamps from the section
-        logging.info(f"Processing section: {section}")
+        st.text(f"Processing section: {section}")
         timestamps = extract_timestamps_from_section(section)
-        logging.info(f"Extracted timestamps: {timestamps}")
+        st.text(f"Extracted timestamps: {timestamps}")
         
         if timestamps:
             start_time, end_time = timestamps
@@ -235,7 +235,7 @@ def clip_and_merge_videos(segments, video_path, output_filename):
                         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                         frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                         out = cv2.VideoWriter(temp_output, fourcc, fps, (frame_width, frame_height))
-                        logging.info(f"Initialized writer for clip: {temp_output}")
+                        st.text(f"Initialized writer for clip: {temp_output}")
 
                     # Write the frame to the temporary video clip
                     out.write(frame)
@@ -251,7 +251,7 @@ def clip_and_merge_videos(segments, video_path, output_filename):
             if out:
                 out.release()
                 temp_clips.append(temp_output)  # Add the temporary clip to the list
-                logging.info(f"Saved temporary clip: {temp_output}")
+                st.text(f"Saved temporary clip: {temp_output}")
 
     # Merge all temporary clips into the final video using OpenCV
     if temp_clips:
@@ -277,16 +277,16 @@ def clip_and_merge_videos(segments, video_path, output_filename):
 
         # Release the final video writer
         out.release()
-        logging.info(f"Final video saved at: {output_path}")
+        st.text(f"Final video saved at: {output_path}")
 
         # Clean up temporary clips
         for clip in temp_clips:
             os.remove(clip)
-            logging.info(f"Deleted temporary clip: {clip}")
+            st.text(f"Deleted temporary clip: {clip}")
 
         return output_path  # Return the path to the merged video
     else:
-        logging.warning("No clips to merge")
+        st.text("No clips to merge")
         return "No clips to merge"
 
 
