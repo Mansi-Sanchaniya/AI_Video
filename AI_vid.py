@@ -438,13 +438,14 @@ def main():
                 for url in input_urls.split(","):
                     url = url.strip()
                     status_text.text(f"Downloading video from {url}...")
-                    download_status, downloaded_video_path = download_video(url)
+                    download_status, downloaded_video_paths = download_video(url)
+                    st.text(f"{downloaded_video_paths}")
                     progress_bar.progress(100)
                     status_text.text(download_status)
                     if "successfully" in download_status:
                         st.success(f"Downloaded: {url}")
-                        if downloaded_video_path:
-                            st.video(downloaded_video_path)
+                        if downloaded_video_paths:
+                            st.video(downloaded_video_paths)
                     else:
                         st.error(f"Failed to download: {url}")
 
