@@ -166,26 +166,6 @@ def process_transcripts(input_urls, progress_bar, status_text):
 
     return "Transcripts Extracted!"  # Once complete
 
-def extract_segments_from_transcript(transcript):
-    segments = []
-    try:
-        # Regular expression to match timestamps in the format [start_time - end_time] and text
-        pattern = r'\[(\d+(\.\d+)?)s - (\d+(\.\d+)?)s\]\s*(.*)'
-        
-        # Find all matches of the pattern in the transcript
-        matches = re.findall(pattern, transcript)
-        
-        for match in matches:
-            start_time = float(match[0])  # Start time in seconds
-            end_time = float(match[2])    # End time in seconds
-            text = match[4]               # The text in that segment
-            
-            segments.append((start_time, end_time, text))
-    except Exception as e:
-        print(f"Error extracting segments: {e}")
-    
-    return segments
-
 
 def clip_and_merge_videos(segments, video_path, output_path):
     temp_clips = []
