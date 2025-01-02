@@ -443,6 +443,10 @@ def main():
 
     if st.button("Combine and Play"):
         if 'query_output' in st.session_state and st.session_state.query_output:
+            st.text(downloaded_video_path)
+            for url in input_urls.split(","):
+                    url = url.strip()
+                    download_status, downloaded_video_path = download_video(url)  # Get the path of the downloaded video
             video_segments = extract_video_segments(st.session_state.query_output)
             output_filename = "final_video.mp4"
             final_path = clip_and_merge_videos(video_segments,downloaded_video_path, output_filename)
