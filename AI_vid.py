@@ -379,7 +379,13 @@ def main():
                     url = url.strip()
                     downloaded_video_paths = download_video(url)  # Get the path of the downloaded video
                     downloaded_video_path.append(downloaded_video_paths)
-            output_video_path = "output_video.mp4"
+            
+            output_directory = "output_videos"  # You can change this to a path of your choice
+            if not os.path.exists(output_directory):
+            os.makedirs(output_directory)  # Create the directory if it doesn't exist
+
+            # Full path for the output video
+            output_video_path = os.path.join(output_directory, "output_video.mp4")
             final_path = clip_and_merge_videos(st.session_state.query_output,downloaded_video_path, output_video_path)
             st.video(final_path)
         else:
