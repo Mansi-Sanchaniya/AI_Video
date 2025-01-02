@@ -242,7 +242,7 @@ def clip_and_merge_videos(segments, video_path, output_filename):
         st.text(f"URL: {url}, Start: {start_time}s, End: {end_time}s")
 
         # Open the video using OpenCV
-        cap = cv2.VideoCapture(url)
+        cap = cv2.VideoCapture(video_path)
         fps = int(cap.get(cv2.CAP_PROP_FPS))
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 
