@@ -4,331 +4,134 @@ from pytube import Playlist
 from sklearn.metrics.pairwise import cosine_similarity
 from youtube_transcript_api import YouTubeTranscriptApi
 from sklearn.feature_extraction.text import TfidfVectorizer
-import subprocess
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import time
-import json
-import io
 import os
+import cv2
+import numpy as np
+from moviepy.editor import VideoFileClip, concatenate_videoclips
 from yt_dlp import YoutubeDL
 
-
-# Function to download a YouTube video using yt-dlp and a cookie file
 def download_video(url):
-    download_status = ""  # Initialize download_status to avoid referencing undefined variable
-    downloaded_video_path = None
-
-    # Define the directory to store the video
-    temp_dir = "temp_videos"  # Name of the temporary directory
-
-    # Create the directory if it doesn't exist
+    temp_dir = "temp_videos"
     if not os.path.exists(temp_dir):
-        os.makedirs(temp_dir)  # Create the directory
+        os.makedirs(temp_dir)
 
-    # Set up yt-dlp options, saving video to the temp directory
     ydl_opts = {
-        'outtmpl': os.path.join('%(title)s.%(ext)s'),  # Save video to the temp directory
+        'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s')
     }
-
-    # Use yt-dlp to download the video
+    downloaded_video_path = None
     with YoutubeDL(ydl_opts) as ydl:
         try:
-            ydl.download([url])
-            download_status = "Video downloaded successfully!"  # Set the success status
-            # Prepare the full path of the downloaded video (fixing path issue)
-            downloaded_video_path = os.path.join(temp_dir, f"{ydl.prepare_filename(ydl.extract_info(url, download=False))}")
-            st.success(download_status)
+            info = ydl.extract_info(url, download=True)
+            downloaded_video_path = ydl.prepare_filename(info)
+            st.success("Video downloaded successfully!")
         except Exception as e:
-            download_status = f"Error downloading video: {str(e)}"  # Set the error message
-            st.error(download_status)  # Display error message
+            st.error(f"Error downloading video: {str(e)}")
+    return downloaded_video_path
 
-    print(downloaded_video_path)
-    return download_status, downloaded_video_path  # Return the status for further checking if needed
-
-
-# Function to get video URLs from multiple playlists or individual video links
-def get_video_urls_multiple(input_urls):
-    video_urls = []
-    urls = input_urls.split(",")  # Split input by comma
-    for url in urls:
-        url = url.strip()  # Remove any leading/trailing spaces
-        if "playlist" in url:
-            playlist = Playlist(url)
-            video_urls.extend(playlist.video_urls)  # Add all video URLs in the playlist
-        else:
-            video_urls.append(url)  # Treat as a single video URL
-    return video_urls
-
-
-# Function to get transcript for a video using its YouTube ID
 def get_transcript(video_url):
     video_id = video_url.split("v=")[-1]
     try:
-        # Fetch the transcript (if available)
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        return transcript
+        return YouTubeTranscriptApi.get_transcript(video_id)
     except Exception as e:
+        st.error(f"Transcript not available for {video_url}: {str(e)}")
         return None
 
-
-# Function to check if a video is under Creative Commons license using YouTube Data API and description
-
-# Function to format the transcript into a readable form
 def format_transcript(transcript):
-    formatted_transcript = []
-    for entry in transcript:
-        start_time = entry['start']  # Timestamp
-        duration = entry['duration']
-        text = entry['text']  # Transcript text
-        formatted_transcript.append(f"[{start_time}s - {start_time + duration}s] {text}")
-    return formatted_transcript
+    return [
+        {
+            "start": entry['start'],
+            "end": entry['start'] + entry['duration'],
+            "text": entry['text']
+        } for entry in transcript
+    ]
 
-
-# Function to process input (multiple playlists or individual videos) and fetch transcripts for all videos
-def process_input(input_urls):
-    video_urls = get_video_urls_multiple(input_urls)
-    if not video_urls:
+def process_query(query, transcript):
+    if not transcript:
         return []
-
-    all_transcripts = []  # List to hold all transcripts
-
-    video_chunks = {}  # Dictionary to store video-specific transcripts
-
-    # Use another ThreadPoolExecutor to fetch transcripts concurrently
-    with ThreadPoolExecutor() as transcript_executor:
-        future_to_video = {transcript_executor.submit(get_transcript, video_url): video_url for video_url in video_urls}
-        for idx, future in enumerate(as_completed(future_to_video)):
-            video_url = future_to_video[future]
-            try:
-                transcript = future.result()
-                if transcript:
-                    formatted_transcript = format_transcript(transcript)
-                    video_chunks[video_url] = formatted_transcript  # Store by video URL
-                else:
-                    video_chunks[video_url] = ["Transcript not available"]
-            except Exception as e:
-                video_chunks[video_url] = ["Transcript extraction failed"]
-                print(f"Error getting transcript for {video_url}: {e}")
-
-    # Reassemble the output in the original order of video URLs
-    for video_url in video_urls:
-        all_transcripts.append(
-            {"video_url": video_url, "transcript": video_chunks.get(video_url, ["No transcript found"])})
-    return all_transcripts
-
-# Function to process the query and extract relevant transcript segments
-def process_query(query, stored_transcripts, threshold=0.3):  # Adjusted threshold for more precise results
-    if not query:
-        st.warning("Please enter a query to search in the transcripts.")
-        return []
-
-    if not stored_transcripts:
-        st.warning("No transcripts available. Please process a playlist or video first.")
-        return []
-
-    all_transcripts_text = []
-    for video in stored_transcripts:
-        video_info = f"Video: {video['video_url']}\n"
-        if isinstance(video['transcript'], list):
-            for line in video['transcript']:
-                all_transcripts_text.append(video_info + line)
-
+    texts = [entry['text'] for entry in transcript]
     vectorizer = TfidfVectorizer(stop_words='english')
-    corpus = all_transcripts_text
     query_vector = vectorizer.fit_transform([query])
-    text_vectors = vectorizer.transform(corpus)
+    text_vectors = vectorizer.transform(texts)
+    similarities = cosine_similarity(query_vector, text_vectors)[0]
+    threshold = 0.3
+    relevant_segments = [
+        {
+            "start": transcript[i]['start'],
+            "end": transcript[i]['end'],
+            "text": transcript[i]['text']
+        } for i, score in enumerate(similarities) if score > threshold
+    ]
+    return relevant_segments
 
-    # Calculate cosine similarity using sklearn's cosine_similarity (which works directly with sparse matrices)
-    cosine_similarities = cosine_similarity(query_vector, text_vectors)
+def clip_video(video_path, segments):
+    temp_dir = "temp_clips"
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
 
-    # Now, cosine_similarities will be a 2D numpy array where we can access the first row (the result for the query)
-    relevant_sections = []
-    for idx, score in enumerate(cosine_similarities[0]):
-        if score > threshold:  # Only include sections that pass the similarity threshold
-            relevant_sections.append(corpus[idx])
+    clip_paths = []
+    for i, segment in enumerate(segments):
+        start_time = segment['start']
+        end_time = segment['end']
+        clip_path = os.path.join(temp_dir, f"clip_{i}.mp4")
 
-    return relevant_sections
+        with VideoFileClip(video_path) as video:
+            clip = video.subclip(start_time, end_time)
+            clip.write_videofile(clip_path, codec="libx264")
 
+        clip_paths.append(clip_path)
+    return clip_paths
 
-# Simulating your process functions for this demonstration
-def process_transcripts(input_urls, progress_bar, status_text):
-    total_steps = 100  # Example total steps for the process
-    start_time = time.time()  # Track the start time
-    for step in range(total_steps):
-        elapsed_time = time.time() - start_time  # Calculate elapsed time
-        time_remaining = elapsed_time / (step + 1) * (total_steps - step - 1)  # Estimate remaining time
-        time_remaining_str = f"{time_remaining:.2f} seconds remaining"  # Format remaining time
-
-        time.sleep(0.1)  # Simulate a task
-        progress_bar.progress(step + 1, text=f"Extracting transcripts: {step + 1}% done")
-        status_text.text(time_remaining_str)  # Update the remaining time text
-
-    return "Transcripts Extracted!"  # Once complete
-
-def clip_and_merge_videos(segments, output_path):
-    temp_clips = []
-
-    for video_path, (start, end, _) in segments:
-        cap = cv2.VideoCapture(video_path)
-        fps = int(cap.get(cv2.CAP_PROP_FPS))
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        temp_output = f"temp_clip_{len(temp_clips)}.mp4"
-
-        out = None
-        frame_idx = 0
-
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
-
-            current_time = frame_idx / fps
-            if start <= current_time <= end:
-                if out is None:
-                    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    out = cv2.VideoWriter(temp_output, fourcc, fps, (frame_width, frame_height))
-                out.write(frame)
-
-            frame_idx += 1
-            if current_time > end:
-                break
-
-        cap.release()
-        if out:
-            out.release()
-            temp_clips.append(temp_output)
-
-    # Merge all clips
-    if temp_clips:
-        merge_command = ["ffmpeg", "-y"]
-        for clip in temp_clips:
-            merge_command += ["-i", clip]
-        merge_command += ["-filter_complex", f"concat=n={len(temp_clips)}:v=1:a=1", output_path]
-
-        os.system(' '.join(merge_command))
-        for clip in temp_clips:
-            os.remove(clip)
-
+def combine_clips(clip_paths):
+    clips = [VideoFileClip(path) for path in clip_paths]
+    final_clip = concatenate_videoclips(clips)
+    output_path = "final_video.mp4"
+    final_clip.write_videofile(output_path, codec="libx264")
     return output_path
 
 def main():
-    st.set_page_config(page_title="Video & Playlist Processor", page_icon="🎬", layout="wide")
+    st.title("YouTube Video Query and Clipping")
 
-    st.markdown("""
-    <style>
-        .css-1d391kg {padding: 30px;}
-        .stTextArea>div>div>textarea {
-            font-size: 14px;
-            line-height: 1.8;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 10px;
-        }
-        .stButton>button {
-            background-color: #ff5c5c;
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            padding: 10px 20px;
-            border-radius: 5px;
-        }
-        .stButton>button:hover {
-            background-color: #ff7d7d;
-            color: white;
-        }
-    </style>
-    """, unsafe_allow_html=True)
+    input_url = st.text_input("Enter a YouTube video URL:")
+    query = st.text_input("Enter your query:")
 
-    st.title("🎬 Video and Playlist Processor")
+    if 'transcript' not in st.session_state:
+        st.session_state.transcript = None
+    if 'segments' not in st.session_state:
+        st.session_state.segments = []
+    if 'video_path' not in st.session_state:
+        st.session_state.video_path = None
 
-    input_urls = st.text_input("Enter YouTube Playlist(s) or Video URL(s) or both (comma-separated):")
+    if st.button("Download and Extract Transcript"):
+        st.session_state.video_path = download_video(input_url)
+        if st.session_state.video_path:
+            transcript = get_transcript(input_url)
+            if transcript:
+                st.session_state.transcript = format_transcript(transcript)
+                st.success("Transcript extracted successfully!")
 
-    if 'stored_transcripts' not in st.session_state:
-        st.session_state.stored_transcripts = []
-    if 'transcript_text' not in st.session_state:
-        st.session_state.transcript_text = ""
+    if st.session_state.transcript:
+        st.subheader("Transcript")
+        st.write("\n".join([f"[{entry['start']}s - {entry['end']}s] {entry['text']}" for entry in st.session_state.transcript]))
 
-    if input_urls:
-        # Create columns for button and progress bar side by side
-        col1, col2 = st.columns([3, 1])
-
-        with col1:
-            if st.button("Extract Transcripts"):
-                progress_bar = col2.progress(0, text="Starting transcript extraction Please Hold...")
-                status_text = col2.empty()  # Placeholder for dynamic status updates
-
-                st.session_state.stored_transcripts = process_input(input_urls)
-                progress_bar.progress(50, text="Processing transcripts...")
-                status_text.text("Processing transcripts...")
-                progress_bar.progress(100, text="Transcripts extracted successfully.")
-                status_text.text("Transcripts extracted successfully.")
-                if st.session_state.stored_transcripts:
-                    transcript_text = ""
-                    for video in st.session_state.stored_transcripts:
-                        transcript_text += f"\nTranscript for video {video['video_url']}:\n"
-                        if isinstance(video['transcript'], list):
-                            for line in video['transcript']:
-                                transcript_text += line + "\n"
-                        else:
-                            transcript_text += video['transcript'] + "\n"
-                        transcript_text += "-" * 50 + "\n"
-                    st.session_state.transcript_text = transcript_text
-
-    if st.session_state.transcript_text:
-        st.subheader("Extracted Transcripts")
-        st.text_area("Transcripts", st.session_state.transcript_text, height=300, key="transcripts_area")
-
-    query = st.text_input("Enter your query to extract relevant information:")
-    if query:
-        # Create columns for button and progress bar side by side
-        col1, col2 = st.columns([3, 1])
-
-        with col1:
-            if st.button("Process Query"):
-                progress_bar = col2.progress(0, text="Starting query processing...")
-                status_text = col2.empty()
-
-                relevant_sections = process_query(query, st.session_state.stored_transcripts)
-                progress_bar.progress(50, text="Analyzing query...")
-                status_text.text("Analyzing query...")
-                progress_bar.progress(100, text="Query processed successfully.")
-                status_text.text("Query processed successfully.")
-                if relevant_sections:
-                    st.session_state.query_output = "\n".join(relevant_sections)
-                else:
-                    st.session_state.query_output = "No relevant content found for the query."
-
-    if 'query_output' in st.session_state and st.session_state.query_output:
-        st.subheader("Relevant Output for Your Query")
-        st.text_area("Query Output", st.session_state.query_output, height=300, key="query_output_area")
-
-    if input_urls and query:
-        with col1:
-            if st.button("Download Video(s)"):
-                progress_bar = col2.progress(0, text="Starting video download. Please hold...")
-                status_text = col2.empty()  # Placeholder for dynamic status updates
-
-                for url in input_urls.split(","):
-                    url = url.strip()
-                    status_text.text(f"Downloading video from {url}...")
-                    download_status, downloaded_video_path = download_video(url)
-                    progress_bar.progress(100)
-                    status_text.text(download_status)
-                    if "successfully" in download_status:
-                        st.success(f"Downloaded: {url}")
-                        if downloaded_video_path:
-                            st.video(downloaded_video_path)
-                    else:
-                        st.error(f"Failed to download: {url}")
+    if st.button("Process Query"):
+        if query and st.session_state.transcript:
+            st.session_state.segments = process_query(query, st.session_state.transcript)
+            if st.session_state.segments:
+                st.success(f"Found {len(st.session_state.segments)} relevant segments!")
+            else:
+                st.warning("No relevant segments found.")
 
     if st.button("Combine and Play"):
-        if 'relevant_segments' in st.session_state:
-            output_video_path = "output_video.mp4"
-            final_path = clip_and_merge_videos(st.session_state.query_output, output_video_path)
-            st.video(final_path)
+        if st.session_state.segments and st.session_state.video_path:
+            clip_paths = clip_video(st.session_state.video_path, st.session_state.segments)
+            if clip_paths:
+                final_video_path = combine_clips(clip_paths)
+                st.success("Final video created successfully!")
+                st.video(final_video_path)
+            else:
+                st.warning("No segments to combine.")
         else:
-            st.error("No segments to combine. Process a query first.")
+            st.warning("No segments to combine. Process a query first.")
 
 if __name__ == "__main__":
     main()
