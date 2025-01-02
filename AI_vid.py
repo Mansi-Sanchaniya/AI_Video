@@ -21,10 +21,6 @@ def download_video(url):
     # Define the directory to store the video
     temp_dir = "temp_videos"  # Name of the temporary directory
 
-    # Create the directory if it doesn't exist
-    if not os.path.exists(temp_dir):
-        os.makedirs(temp_dir)  # Create the directory
-
     # Set up yt-dlp options, saving video to the temp directory
     ydl_opts = {
         'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),  # Save video to the temp directory
