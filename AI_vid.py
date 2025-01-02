@@ -325,10 +325,14 @@ def main():
 
     if st.button("Combine and Play"):
         if 'query_output' in st.session_state and st.session_state.query_output:
-            downloaded_video_path = download_video(url)
-            output_video_path = "output_video.mp4"
-            final_path = clip_and_merge_videos(st.session_state.query_output,downloaded_video_path, output_video_path)
-            st.video(final_path)
+            if 'stored_transcripts' in st.session_state and st.session_state.stored_transcripts:
+            # Get the video URLs from stored transcripts
+                video_urls = [video['video_url'] for video in st.session_state.stored_transcripts]
+                output_video_path = "output_video.mp4"
+                final_path = clip_and_merge_videos(st.session_state.query_output,downloaded_video_path, output_video_path)
+                st.video(final_path)
+            else:
+                st.error("No videos to combine. Ensure that transcripts are extracted first.")
         else:
             st.error("No segments to combine. Process a query first.")
 
