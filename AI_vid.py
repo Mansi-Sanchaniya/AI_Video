@@ -42,6 +42,7 @@ def download_video(url):
             download_status = f"Error downloading video: {str(e)}"  # Set the error message
             st.error(download_status)  # Display error message
 
+    print(downloaded_video_path)
     return download_status, downloaded_video_path  # Return the status for further checking if needed
 
 
