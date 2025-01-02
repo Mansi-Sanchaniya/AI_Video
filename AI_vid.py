@@ -328,7 +328,6 @@ def main():
             downloaded_video_path = []
             for url in input_urls.split(","):
                     url = url.strip()
-                    status_text.text(f"Downloading video from {url}...")
                     downloaded_video_paths = download_video(url)  # Get the path of the downloaded video
                     downloaded_video_path.append(downloaded_video_paths)
             output_video_path = "output_video.mp4"
