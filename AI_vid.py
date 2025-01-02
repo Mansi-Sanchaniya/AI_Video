@@ -10,7 +10,6 @@ import time
 import json
 import io
 import os
-import cv2
 from yt_dlp import YoutubeDL
 
 
@@ -166,10 +165,10 @@ def process_transcripts(input_urls, progress_bar, status_text):
 
     return "Transcripts Extracted!"  # Once complete
 
-def clip_and_merge_videos(segments, video_path, output_path):
+def clip_and_merge_videos(segments, output_path):
     temp_clips = []
 
-    for start, end, _ in segments:
+    for video_path, (start, end, _) in segments:
         cap = cv2.VideoCapture(video_path)
         fps = int(cap.get(cv2.CAP_PROP_FPS))
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
@@ -324,9 +323,9 @@ def main():
                         st.error(f"Failed to download: {url}")
 
     if st.button("Combine and Play"):
-        if 'query_output' in st.session_state and st.session_state.query_output:
+        if 'relevant_segments' in st.session_state:
             output_video_path = "output_video.mp4"
-            final_path = clip_and_merge_videos(st.session_state.query_output,downloaded_video_path, output_video_path)
+            final_path = clip_and_merge_videos(st.session_state.query_output, output_video_path)
             st.video(final_path)
         else:
             st.error("No segments to combine. Process a query first.")
