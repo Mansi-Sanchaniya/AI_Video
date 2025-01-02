@@ -382,7 +382,7 @@ def main():
             
             output_directory = "output_videos"  # You can change this to a path of your choice
             if not os.path.exists(output_directory):
-            os.makedirs(output_directory)  # Create the directory if it doesn't exist
+                os.makedirs(output_directory)  # Create the directory if it doesn't exist
 
             # Full path for the output video
             output_video_path = os.path.join(output_directory, "output_video.mp4")
