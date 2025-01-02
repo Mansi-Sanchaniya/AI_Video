@@ -117,8 +117,8 @@ def process_input(input_urls):
             {"video_url": video_url, "transcript": video_chunks.get(video_url, ["No transcript found"])})
     return all_transcripts
 
-# Function to process the query and extract relevant transcript segments
-def process_query(query, stored_transcripts, threshold=0.3):  # Adjusted threshold for more precise results
+
+ def process_query(query, stored_transcripts, threshold=0.3):  # Adjusted threshold for more precise results
     if not query:
         st.warning("Please enter a query to search in the transcripts.")
         return []
@@ -128,27 +128,27 @@ def process_query(query, stored_transcripts, threshold=0.3):  # Adjusted thresho
         return []
 
     all_transcripts_text = []
+    segments = []  # List to store the (start, end, text) tuples for relevant segments
     for video in stored_transcripts:
         video_info = f"Video: {video['video_url']}\n"
         if isinstance(video['transcript'], list):
-            for line in video['transcript']:
-                all_transcripts_text.append(video_info + line)
+            for entry in video['transcript']:
+                text = entry['text']
+                start_time = entry['start']
+                end_time = start_time + entry['duration']
+                all_transcripts_text.append(video_info + text)
 
-    vectorizer = TfidfVectorizer(stop_words='english')
-    corpus = all_transcripts_text
-    query_vector = vectorizer.fit_transform([query])
-    text_vectors = vectorizer.transform(corpus)
+                # If this segment is relevant, store it as a tuple (start, end, text)
+                vectorizer = TfidfVectorizer(stop_words='english')
+                corpus = [text]  # Simplified corpus containing only this segment
+                query_vector = vectorizer.fit_transform([query])
+                text_vector = vectorizer.transform(corpus)
+                cosine_similarities = cosine_similarity(query_vector, text_vector)
 
-    # Calculate cosine similarity using sklearn's cosine_similarity (which works directly with sparse matrices)
-    cosine_similarities = cosine_similarity(query_vector, text_vectors)
+                if cosine_similarities[0][0] > threshold:
+                    segments.append((start_time, end_time, text))  # Store as a tuple
 
-    # Now, cosine_similarities will be a 2D numpy array where we can access the first row (the result for the query)
-    relevant_sections = []
-    for idx, score in enumerate(cosine_similarities[0]):
-        if score > threshold:  # Only include sections that pass the similarity threshold
-            relevant_sections.append(corpus[idx])
-
-    return relevant_sections
+    return segments  # Return the list of (start, end, text) tuples
 
 
 # Simulating your process functions for this demonstration
