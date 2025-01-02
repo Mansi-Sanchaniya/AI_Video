@@ -122,6 +122,7 @@ def process_input(input_urls):
 
 # Function to process the query and extract relevant transcript segments
 def process_query(query, stored_transcripts, threshold=0.3):  # Adjusted threshold for more precise results
+    logging.info("Entered processs query function")
     if not query:
         st.warning("Please enter a query to search in the transcripts.")
         return []
@@ -186,6 +187,7 @@ def extract_timestamps_from_section(section):
 
 # Function to clip and merge videos based on the timestamps (without ffmpeg)
 def clip_and_merge_videos(segments, video_path, output_filename):
+    logging.info("Entered clip_and_merge_videos function")
     temp_dir = "temp_videos"  # Name of the temporary directory
 
     # Create the directory if it doesn't exist
@@ -196,7 +198,8 @@ def clip_and_merge_videos(segments, video_path, output_filename):
     # Full output path for the final video
     output_path = os.path.join(temp_dir, output_filename)
     temp_clips = []
-
+    logging.info(f"Type of st.session_state.query_output: {type(segments)}")
+    logging.info(f"Value of st.session_state.query_output: {segments}")
     for section in segments:
         # Extract the start and end timestamps from the section
         logging.info(f"Processing section: {section}")
