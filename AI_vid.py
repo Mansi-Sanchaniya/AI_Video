@@ -395,6 +395,7 @@ def main():
     if st.button("Combine and Play"):
         if 'query_output' in st.session_state and st.session_state.query_output:
             downloaded_video_path = []
+            print(downloaded_video_path)
             for url in input_urls.split(","):
                     url = url.strip()
                     downloaded_video_paths = download_video(url)  # Get the path of the downloaded video
@@ -405,6 +406,7 @@ def main():
             # Check if the final video file exists
             if os.path.exists(final_path) and os.path.getsize(final_path) > 0:
                 st.success("Final video created successfully!")
+                st.write(f"Clips stored in: {os.path.abspath('temp_videos')}")
                 st.video(final_path)  # Display the final video
             else:
                 st.error("Failed to create the final video. Please check the video segments and try again.")
