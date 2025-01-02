@@ -325,7 +325,7 @@ def main():
     if st.button("Combine and Play"):
         if 'relevant_segments' in st.session_state:
             output_video_path = "output_video.mp4"
-            final_path = clip_and_merge_videos(st.session_state.relevant_segments, output_video_path)
+            final_path = clip_and_merge_videos(st.session_state.query_output, output_video_path)
             st.video(final_path)
         else:
             st.error("No segments to combine. Process a query first.")
