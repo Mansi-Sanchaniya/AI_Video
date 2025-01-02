@@ -298,7 +298,7 @@ def clip_and_merge_videos(segments, video_path, output_filename):
         first_clip = cv2.VideoCapture(temp_clips[0])
         frame_width = int(first_clip.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(first_clip.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = first_clip.get(cv2.CAP_PROP_FPS())
+        fps = first_clip.get(cv2.CAP_PROP_FPS)
         first_clip.release()
 
         # Initialize the final video writer
