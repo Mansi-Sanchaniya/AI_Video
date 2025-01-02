@@ -186,7 +186,7 @@ def extract_timestamps_from_section(section):
         print(f"Error extracting timestamps from section '{section}'. Exception: {e}")
         return None
 
-# Function to clip and merge videos based on the timestamps
+# Function to clip and merge videos based on the timestamps (without ffmpeg)
 def clip_and_merge_videos(segments, video_path, output_path):
     temp_clips = []
 
@@ -238,19 +238,30 @@ def clip_and_merge_videos(segments, video_path, output_path):
                 out.release()
                 temp_clips.append(temp_output)  # Add the temporary clip to the list
 
-    # Merge all temporary clips into the final video
+    # Merge all temporary clips into the final video using OpenCV
     if temp_clips:
-        merge_command = ["ffmpeg", "-y"]
+        # Open the first clip to get the properties (resolution, fps, etc.)
+        first_clip = cv2.VideoCapture(temp_clips[0])
+        frame_width = int(first_clip.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(first_clip.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = first_clip.get(cv2.CAP_PROP_FPS())
+        first_clip.release()
 
-        # Add each temporary clip to the ffmpeg command
+        # Initialize the final video writer
+        out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame_width, frame_height))
+
+        # Loop through and write each temporary clip into the final video
         for clip in temp_clips:
-            merge_command += ["-i", clip]
+            temp_cap = cv2.VideoCapture(clip)
+            while temp_cap.isOpened():
+                ret, frame = temp_cap.read()
+                if not ret:
+                    break
+                out.write(frame)  # Write frame to final video
+            temp_cap.release()
 
-        # Define the filter for concatenating the clips
-        merge_command += ["-filter_complex", f"concat=n={len(temp_clips)}:v=1:a=1", output_path]
-
-        # Execute the ffmpeg command to merge the clips
-        os.system(' '.join(merge_command))
+        # Release the final video writer
+        out.release()
 
         # Clean up temporary clips
         for clip in temp_clips:
@@ -259,6 +270,7 @@ def clip_and_merge_videos(segments, video_path, output_path):
         return output_path  # Return the path to the merged video
     else:
         return "No clips to merge"
+
 
 
 
