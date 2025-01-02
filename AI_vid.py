@@ -166,6 +166,7 @@ def process_transcripts(input_urls, progress_bar, status_text):
 
     return "Transcripts Extracted!"  # Once complete
 
+
 def clip_and_merge_videos(segments, video_path, output_path):
     temp_clips = []
 
@@ -200,18 +201,36 @@ def clip_and_merge_videos(segments, video_path, output_path):
             out.release()
             temp_clips.append(temp_output)
 
-    # Merge all clips
+    # Merge all clips manually without ffmpeg
     if temp_clips:
-        merge_command = ["ffmpeg", "-y"]
-        for clip in temp_clips:
-            merge_command += ["-i", clip]
-        merge_command += ["-filter_complex", f"concat=n={len(temp_clips)}:v=1:a=1", output_path]
+        # Open the first clip to get properties
+        cap = cv2.VideoCapture(temp_clips[0])
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        cap.release()
 
-        os.system(' '.join(merge_command))
+        # Write the merged video file
+        out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
+
+        # Write all the frames from the temporary clips to the output
+        for clip in temp_clips:
+            cap = cv2.VideoCapture(clip)
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                out.write(frame)
+            cap.release()
+
+        out.release()
+
+        # Remove temporary clips
         for clip in temp_clips:
             os.remove(clip)
 
     return output_path
+
 
 def main():
     st.set_page_config(page_title="Video & Playlist Processor", page_icon="🎬", layout="wide")
