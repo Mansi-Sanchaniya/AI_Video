@@ -324,7 +324,7 @@ def main():
                         st.error(f"Failed to download: {url}")
 
     if st.button("Combine and Play"):
-        if 'relevant_segments' in st.session_state:
+        if 'query_output' in st.session_state and st.session_state.query_output:
             downloaded_video_path = download_video(url)
             output_video_path = "output_video.mp4"
             final_path = clip_and_merge_videos(st.session_state.query_output,downloaded_video_path, output_video_path)
