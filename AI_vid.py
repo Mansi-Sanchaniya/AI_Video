@@ -117,7 +117,39 @@ def process_input(input_urls):
             {"video_url": video_url, "transcript": video_chunks.get(video_url, ["No transcript found"])})
     return all_transcripts
 
-def process_query(query, stored_transcripts, threshold=0.3):  # Adjusted threshold for more precise results
+
+def extract_timestamps_from_section(section):
+    try:
+        # Strip any leading/trailing whitespaces
+        section = section.strip()
+
+        # Check if the section contains timestamp information in the correct format
+        if '[' not in section or ']' not in section:
+            return None  # Skip sections that do not contain timestamps in '[start_time - end_time]' format
+
+        # Extract the timestamp part of the section (the part inside the brackets)
+        timestamp_part = section[section.find('[') + 1:section.find(']')].strip()  # Extract content inside brackets
+        times = timestamp_part.split(" - ")
+
+        # Ensure two timestamps are found in the section
+        if len(times) != 2:
+            return None  # Return None to skip this section
+
+        # Clean timestamps and remove any unnecessary decimal precision
+        start_time = float(times[0].strip().replace("s", ""))
+        end_time = float(times[1].strip().replace("s", ""))
+
+        # Round to a reasonable precision (e.g., 2 decimal places)
+        start_time = round(start_time, 2)
+        end_time = round(end_time, 2)
+
+        return start_time, end_time
+    except Exception as e:
+        print(f"Error extracting timestamps from section '{section}'. Exception: {e}")
+        return None  # Return None in case of an error
+
+
+def process_query(query, stored_transcripts, threshold=0.3):
     if not query:
         st.warning("Please enter a query to search in the transcripts.")
         return []
@@ -128,24 +160,33 @@ def process_query(query, stored_transcripts, threshold=0.3):  # Adjusted thresho
 
     all_transcripts_text = []
     segments = []  # List to store the (start, end, text) tuples for relevant segments
+    
     for video in stored_transcripts:
         video_info = f"Video: {video['video_url']}\n"
+        
+        # Assuming the transcript is a list of entries like:
+        # [start_time - end_time] text
         if isinstance(video['transcript'], list):
             for entry in video['transcript']:
-                text = entry['text']
-                start_time = entry['start']
-                end_time = start_time + entry['duration']
-                all_transcripts_text.append(video_info + text)
+                # Extract time range and text from the format
+                match = re.match(r"\[(\d+(\.\d+)?)s - (\d+(\.\d+)?)s\] (.+)", entry)
+                if match:
+                    start_time = float(match.group(1))
+                    end_time = float(match.group(3))
+                    text = match.group(5)
+                    all_transcripts_text.append(video_info + text)
 
-                # If this segment is relevant, store it as a tuple (start, end, text)
-                vectorizer = TfidfVectorizer(stop_words='english')
-                corpus = [text]  # Simplified corpus containing only this segment
-                query_vector = vectorizer.fit_transform([query])
-                text_vector = vectorizer.transform(corpus)
-                cosine_similarities = cosine_similarity(query_vector, text_vector)
+                    # If this segment is relevant, store it as a tuple (start, end, text)
+                    vectorizer = TfidfVectorizer(stop_words='english')
+                    corpus = [text]  # Simplified corpus containing only this segment
+                    query_vector = vectorizer.fit_transform([query])
+                    text_vector = vectorizer.transform(corpus)
+                    cosine_similarities = cosine_similarity(query_vector, text_vector)
 
-                if cosine_similarities[0][0] > threshold:
-                    segments.append((start_time, end_time, text))  # Store as a tuple
+                    if cosine_similarities[0][0] > threshold:
+                        segments.append((start_time, end_time, text))  # Store as a tuple
+                else:
+                    print(f"Skipping invalid entry format: {entry}")  # Log if entry doesn't match expected format
 
     return segments  # Return the list of (start, end, text) tuples
 
