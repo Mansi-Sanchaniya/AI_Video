@@ -25,15 +25,17 @@ def download_video(url):
     # Use yt-dlp to download the video
     with YoutubeDL(ydl_opts) as ydl:
         try:
-            ydl.download([url])
-            download_status = "Video downloaded successfully!"  # Set the success status
+            result = ydl.download([url])
+            # After successful download, get the file path
+            video_file = result[0]['filename'] if isinstance(result, list) else result['filename']
+            download_status = f"Video downloaded successfully! Playing video: {video_file}"  # Set the success status
             st.success(download_status)  # Display success message
+            return video_file  # Return the video file path for playback
         except Exception as e:
             download_status = f"Error downloading video: {str(e)}"  # Set the error message
             st.error(download_status)  # Display error message
 
-    return download_status  # Return the status for further checking if needed
-
+    return None  # Return None if an error occurs
 
 
 
@@ -247,7 +249,7 @@ def main():
         st.subheader("Relevant Output for Your Query")
         st.text_area("Query Output", st.session_state.query_output, height=300, key="query_output_area")
 
-    if input_urls:
+    if input_urls and query:
         with col1:
             if st.button("Download Video(s)"):
                 progress_bar = col2.progress(0, text="Starting video download. Please hold...")
@@ -256,13 +258,13 @@ def main():
                 for url in input_urls.split(","):
                     url = url.strip()
                     status_text.text(f"Downloading video from {url}...")
-                    download_status = download_video(url)
+                    video_file = download_video(url)
                     progress_bar.progress(100)
-                    status_text.text(download_status)
-                    if "successfully" in download_status:
-                        st.success(f"Downloaded successfully: {url}")
+                    status_text.text(f"Download complete. Playing video: {video_file}")
+                    if video_file and os.path.exists(video_file):
+                        st.video(video_file)  # Play the video once it is downloaded
                     else:
-                        st.error(f"Error: {download_status}")
+                        st.error(f"Error: Failed to download video from {url}")
 
 if __name__ == "__main__":
     main()
