@@ -239,7 +239,7 @@ def clip_and_merge_videos(segments, video_path, output_filename):
         st.text("Entered loop")
         # Extract the video URL, start and end times
         url, start_time, end_time = segment
-        st.text(f"{url} {start_time} {end_time}")
+        st.text(f"URL: {url}, Start: {start_time}s, End: {end_time}s")
 
         # Open the video using OpenCV
         cap = cv2.VideoCapture(url)
@@ -442,8 +442,9 @@ def main():
                     url = url.strip()
                     download_status, downloaded_video_paths = download_video(url)  # Get the path of the downloaded video
                     downloaded_video_path.append(downloaded_video_paths)
+            video_segments = extract_video_segments(st.session_state.query_output)
             output_filename = "final_video.mp4"
-            final_path = clip_and_merge_videos(st.session_state.query_output,downloaded_video_path, output_filename)
+            final_path = clip_and_merge_videos(video_segments,downloaded_video_path, output_filename)
             # Check if the final video file exists
             if os.path.exists(final_path) and os.path.getsize(final_path) > 0:
                 st.success("Final video created successfully!")
