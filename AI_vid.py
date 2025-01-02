@@ -402,7 +402,12 @@ def main():
             
             output_filename = "final_video.mp4"
             final_path = clip_and_merge_videos(st.session_state.query_output,downloaded_video_path, output_filename)
-            st.video(final_path)
+            # Check if the final video file exists
+            if os.path.exists(final_path) and os.path.getsize(final_path) > 0:
+                st.success("Final video created successfully!")
+                st.video(final_path)  # Display the final video
+            else:
+                st.error("Failed to create the final video. Please check the video segments and try again.")
         else:
             st.error("No segments to combine. Process a query first.")
 
