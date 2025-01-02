@@ -443,6 +443,7 @@ def main():
                     download_status, downloaded_video_paths = download_video(url)  # Get the path of the downloaded video
                     downloaded_video_path.append(downloaded_video_paths)
             video_segments = extract_video_segments(st.session_state.query_output)
+            st.text(f"Video segments: {video_segments}'")
             st.text("Processing query...")
             output_filename = "final_video.mp4"
             final_path = clip_and_merge_videos(video_segments,downloaded_video_path, output_filename)
