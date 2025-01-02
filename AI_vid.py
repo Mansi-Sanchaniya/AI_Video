@@ -21,6 +21,10 @@ def download_video(url):
     # Define the directory to store the video
     temp_dir = "temp_videos"  # Name of the temporary directory
 
+    # Create the directory if it doesn't exist
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)  # Create the directory
+
     # Set up yt-dlp options, saving video to the temp directory
     ydl_opts = {
         'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),  # Save video to the temp directory
@@ -29,9 +33,17 @@ def download_video(url):
     # Use yt-dlp to download the video
     with YoutubeDL(ydl_opts) as ydl:
         try:
+            # First, extract video info without downloading
+            info_dict = ydl.extract_info(url, download=False)
+            video_title = info_dict.get('title', 'downloaded_video')
+            video_ext = info_dict.get('ext', 'mp4')  # Get video extension (e.g., mp4, mkv)
+
+            # Construct the path for the video file
+            downloaded_video_path = os.path.join(temp_dir, f"{video_title}.{video_ext}")
+
+            # Download the video
             ydl.download([url])
             download_status = "Video downloaded successfully!"  # Set the success status
-            downloaded_video_path = os.path.join(temp_dir, f"{ydl.prepare_filename(ydl.extract_info(url, download=False))}")
             st.success(download_status)  # Display success message
         except Exception as e:
             download_status = f"Error downloading video: {str(e)}"  # Set the error message
