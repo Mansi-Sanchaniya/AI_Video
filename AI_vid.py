@@ -223,7 +223,8 @@ def extract_video_segments(input_string):
 def clip_and_merge_videos(segments, video_path, output_filename):
     st.text("Entered clip_and_merge_videos function")
     temp_dir = "temp_videos"  # Name of the temporary directory
-
+    total_duration = 0
+    
     # Create the directory if it doesn't exist
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)  # Create the directory
@@ -290,7 +291,13 @@ def clip_and_merge_videos(segments, video_path, output_filename):
         if out:
             out.release()
             temp_clips.append(temp_output)  # Add the temporary clip to the list
-            st.text(f"Saved temporary clip: {temp_output}")
+            clip_duration = (frame_idx / fps)  # Calculate the duration of the clip
+            total_duration += clip_duration  # Add the clip duration to the total
+            st.text(f"Saved temporary clip: {temp_output}, Duration: {clip_duration}s")
+
+    # Convert total duration to minutes
+    total_duration_minutes = total_duration / 60
+    st.text(f"Total duration of combined clips: {total_duration_minutes} minutes")
 
     # Merge all temporary clips into the final video using OpenCV
     if temp_clips:
@@ -308,6 +315,7 @@ def clip_and_merge_videos(segments, video_path, output_filename):
         for clip in temp_clips:
             temp_cap = cv2.VideoCapture(clip)
             while temp_cap.isOpened():
+                st.text(f"Clip {clip} has content.")
                 ret, frame = temp_cap.read()
                 if not ret:
                     break
