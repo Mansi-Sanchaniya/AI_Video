@@ -337,9 +337,10 @@ def main():
                 progress_bar.progress(100, text="Query processed successfully.")
                 status_text.text("Query processed successfully.")
                 if relevant_sections:
-                    st.session_state.query_output = "\n".join(relevant_sections)
+                    st.session_state.query_output = "\n".join([f"{start_time}s - {end_time}s: {text}" for start_time, end_time, text in relevant_sections])
                 else:
-                    st.session_state.query_output = "No relevant content found for the query."
+                    st.session_state.query_output = "No relevant sections found for the query."
+    
 
     if 'query_output' in st.session_state and st.session_state.query_output:
         st.subheader("Relevant Output for Your Query")
