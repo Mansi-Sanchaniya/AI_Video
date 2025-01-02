@@ -167,7 +167,8 @@ def process_transcripts(input_urls, progress_bar, status_text):
 
     return "Transcripts Extracted!"  # Once complete
 
-def clip_and_merge_videos(segments, video_path, output_path):
+# Function to clip and merge videos, saving to a temporary file
+def clip_and_merge_videos(segments, video_path):
     temp_clips = []
 
     for segment in segments:
@@ -210,18 +211,32 @@ def clip_and_merge_videos(segments, video_path, output_path):
                 out.release()
                 temp_clips.append(temp_output)
 
-    # Merge all clips
     if temp_clips:
+        # Merge all clips into a temporary file
         merge_command = ["ffmpeg", "-y"]
         for clip in temp_clips:
             merge_command += ["-i", clip]
-        merge_command += ["-filter_complex", f"concat=n={len(temp_clips)}:v=1:a=1", output_path]
+        merge_command += ["-filter_complex", f"concat=n={len(temp_clips)}:v=1:a=1"]
 
-        os.system(' '.join(merge_command))
-        for clip in temp_clips:
-            os.remove(clip)
+        # Create a temporary file for the final video output
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as temp_output_file:
+            output_video_path = temp_output_file.name
+            merge_command.append(output_video_path)
 
-    return output_path
+            # Execute the merge command
+            os.system(' '.join(merge_command))
+
+            # Clean up temporary clip files
+            for clip in temp_clips:
+                os.remove(clip)
+
+        return output_video_path
+
+    else:
+        # Return an error message if no clips were processed
+        return "Error: No relevant segments were found to create clips."
+
+
 
 
 def main():
@@ -339,11 +354,13 @@ def main():
             for url in input_urls.split(","):
                     url = url.strip()
                     download_status, downloaded_video_path = download_video(url)
-            output_video_path = "output_video.mp4"
-            final_path = clip_and_merge_videos(st.session_state.query_output,downloaded_video_path, output_video_path)
-            st.video(final_path)
-        else:
-            st.error("No segments to combine. Process a query first.")
+                    if "successfully" in download_status and downloaded_video_path:
+                        output_video_path = clip_and_merge_videos(st.session_state.query_output, downloaded_video_path)
+                        if output_video_path:
+                            st.video(output_video_path)
+                            os.remove(output_video_path)  # Cleanup after displaying the video
+                        else:
+                            st.error("Video processing failed.")
 
 if __name__ == "__main__":
     main()
