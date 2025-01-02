@@ -16,10 +16,18 @@ from yt_dlp import YoutubeDL
 # Function to download a YouTube video using yt-dlp and a cookie file
 def download_video(url):
     download_status = ""  # Initialize download_status to avoid referencing undefined variable
+    downloaded_video_path = None
 
-    # Set up yt-dlp options
+    # Define the directory to store the video
+    temp_dir = "temp_videos"  # Name of the temporary directory
+
+    # Create the directory if it doesn't exist
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)  # Create the directory
+
+    # Set up yt-dlp options, saving video to the temp directory
     ydl_opts = {
-        'outtmpl': '%(title)s.%(ext)s',  # Output file name pattern
+        'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),  # Save video to the temp directory
     }
 
     # Use yt-dlp to download the video
@@ -27,12 +35,13 @@ def download_video(url):
         try:
             ydl.download([url])
             download_status = "Video downloaded successfully!"  # Set the success status
+            downloaded_video_path = os.path.join(temp_dir, ydl.prepare_filename(ydl.extract_info(url, download=False)))
             st.success(download_status)  # Display success message
         except Exception as e:
             download_status = f"Error downloading video: {str(e)}"  # Set the error message
             st.error(download_status)  # Display error message
 
-    return download_status  # Return the status for further checking if needed
+    return download_status, downloaded_video_path  # Return the status for further checking if needed
 
 
 # Function to get video URLs from multiple playlists or individual video links
@@ -259,6 +268,8 @@ def main():
                     status_text.text(download_status)
                     if "successfully" in download_status:
                         st.success(f"Downloaded: {url}")
+                        if downloaded_video_path:
+                            st.video(downloaded_video_path)
                     else:
                         st.error(f"Failed to download: {url}")
 
