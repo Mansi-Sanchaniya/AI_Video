@@ -303,7 +303,7 @@ def main():
         st.subheader("Relevant Output for Your Query")
         st.text_area("Query Output", st.session_state.query_output, height=300, key="query_output_area")
 
-    if input_urls:
+    if input_urls and query:
         with col1:
             if st.button("Download Video(s)"):
                 progress_bar = col2.progress(0, text="Starting video download. Please hold...")
