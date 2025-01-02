@@ -12,7 +12,10 @@ import io
 import os
 import cv2
 from yt_dlp import YoutubeDL
+import logging
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # Function to download a YouTube video using yt-dlp and a cookie file
 def download_video(url):
@@ -172,19 +175,14 @@ import cv2
 import os
 import subprocess
 
-# Function to extract the timestamps from a section string like "[0.06s - 4.02s] digital marketing..."
 def extract_timestamps_from_section(section):
-    try:
-        # Regex to capture the start and end times from the format [start_time - end_time]
-        match = re.match(r'\[([\d.]+)s - ([\d.]+)s\]', section)
-        if match:
-            start_time = float(match.group(1))
-            end_time = float(match.group(2))
-            return start_time, end_time
-        return None  # If no match found, return None
-    except Exception as e:
-        print(f"Error extracting timestamps from section '{section}'. Exception: {e}")
-        return None
+    """Extract start and end times from a section string in the format [2.76s - 4.55s]."""
+    match = re.search(r"\[(\d+\.\d+)s\s*-\s*(\d+\.\d+)s\]", section)
+    if match:
+        start_time = float(match.group(1))
+        end_time = float(match.group(2))
+        return start_time, end_time
+    return None
 
 # Function to clip and merge videos based on the timestamps (without ffmpeg)
 def clip_and_merge_videos(segments, video_path, output_filename):
@@ -193,6 +191,7 @@ def clip_and_merge_videos(segments, video_path, output_filename):
     # Create the directory if it doesn't exist
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)  # Create the directory
+        logging.info(f"Created temporary directory: {temp_dir}")
 
     # Full output path for the final video
     output_path = os.path.join(temp_dir, output_filename)
@@ -200,7 +199,10 @@ def clip_and_merge_videos(segments, video_path, output_filename):
 
     for section in segments:
         # Extract the start and end timestamps from the section
+        logging.info(f"Processing section: {section}")
         timestamps = extract_timestamps_from_section(section)
+        logging.info(f"Extracted timestamps: {timestamps}")
+        
         if timestamps:
             start_time, end_time = timestamps
 
@@ -230,6 +232,7 @@ def clip_and_merge_videos(segments, video_path, output_filename):
                         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                         frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                         out = cv2.VideoWriter(temp_output, fourcc, fps, (frame_width, frame_height))
+                        logging.info(f"Initialized writer for clip: {temp_output}")
 
                     # Write the frame to the temporary video clip
                     out.write(frame)
@@ -245,6 +248,7 @@ def clip_and_merge_videos(segments, video_path, output_filename):
             if out:
                 out.release()
                 temp_clips.append(temp_output)  # Add the temporary clip to the list
+                logging.info(f"Saved temporary clip: {temp_output}")
 
     # Merge all temporary clips into the final video using OpenCV
     if temp_clips:
@@ -270,13 +274,16 @@ def clip_and_merge_videos(segments, video_path, output_filename):
 
         # Release the final video writer
         out.release()
+        logging.info(f"Final video saved at: {output_path}")
 
         # Clean up temporary clips
         for clip in temp_clips:
             os.remove(clip)
+            logging.info(f"Deleted temporary clip: {clip}")
 
         return output_path  # Return the path to the merged video
     else:
+        logging.warning("No clips to merge")
         return "No clips to merge"
 
 
