@@ -18,8 +18,11 @@ def download_video(url):
 
     # Set up yt-dlp options
     ydl_opts = {
-        'outtmpl': '%(title)s.%(ext)s',  # Output file name pattern
+        'outtmpl': '%(title)s.%(ext)s',
+        'format': 'best',
+        'verbose': True,  # Enable verbose output
     }
+
 
     # Use yt-dlp to download the video
     with YoutubeDL(ydl_opts) as ydl:
