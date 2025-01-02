@@ -167,69 +167,99 @@ def process_transcripts(input_urls, progress_bar, status_text):
     return "Transcripts Extracted!"  # Once complete
 
 
+import re
+import cv2
+import os
+import subprocess
+
+# Function to extract the timestamps from a section string like "[0.06s - 4.02s] digital marketing..."
+def extract_timestamps_from_section(section):
+    try:
+        # Regex to capture the start and end times from the format [start_time - end_time]
+        match = re.match(r'\[([\d.]+)s - ([\d.]+)s\]', section)
+        if match:
+            start_time = float(match.group(1))
+            end_time = float(match.group(2))
+            return start_time, end_time
+        return None  # If no match found, return None
+    except Exception as e:
+        print(f"Error extracting timestamps from section '{section}'. Exception: {e}")
+        return None
+
+# Function to clip and merge videos based on the timestamps
 def clip_and_merge_videos(segments, video_path, output_path):
     temp_clips = []
 
-    for start, end, _ in segments:
-        cap = cv2.VideoCapture(video_path)
-        fps = int(cap.get(cv2.CAP_PROP_FPS))
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        temp_output = f"temp_clip_{len(temp_clips)}.mp4"
+    for section in segments:
+        # Extract the start and end timestamps from the section
+        timestamps = extract_timestamps_from_section(section)
+        if timestamps:
+            start_time, end_time = timestamps
 
-        out = None
-        frame_idx = 0
+            # Open the video using OpenCV
+            cap = cv2.VideoCapture(video_path)
+            fps = int(cap.get(cv2.CAP_PROP_FPS))
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
+            # Define the output path for the temporary video clip
+            temp_output = f"temp_clip_{len(temp_clips)}.mp4"
 
-            current_time = frame_idx / fps
-            if start <= current_time <= end:
-                if out is None:
-                    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    out = cv2.VideoWriter(temp_output, fourcc, fps, (frame_width, frame_height))
-                out.write(frame)
+            out = None
+            frame_idx = 0
 
-            frame_idx += 1
-            if current_time > end:
-                break
-
-        cap.release()
-        if out:
-            out.release()
-            temp_clips.append(temp_output)
-
-    # Merge all clips manually without ffmpeg
-    if temp_clips:
-        # Open the first clip to get properties
-        cap = cv2.VideoCapture(temp_clips[0])
-        fps = int(cap.get(cv2.CAP_PROP_FPS))
-        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        cap.release()
-
-        # Write the merged video file
-        out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
-
-        # Write all the frames from the temporary clips to the output
-        for clip in temp_clips:
-            cap = cv2.VideoCapture(clip)
+            # Read and process the video frames
             while cap.isOpened():
                 ret, frame = cap.read()
                 if not ret:
                     break
-                out.write(frame)
+
+                # Get the current time in seconds from the frame index
+                current_time = frame_idx / fps
+
+                # Check if the current time falls within the segment's start and end times
+                if start_time <= current_time <= end_time:
+                    if out is None:
+                        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                        out = cv2.VideoWriter(temp_output, fourcc, fps, (frame_width, frame_height))
+
+                    # Write the frame to the temporary video clip
+                    out.write(frame)
+
+                frame_idx += 1
+
+                # Stop once we surpass the end time
+                if current_time > end_time:
+                    break
+
+            # Release the video capture and output objects
             cap.release()
+            if out:
+                out.release()
+                temp_clips.append(temp_output)  # Add the temporary clip to the list
 
-        out.release()
+    # Merge all temporary clips into the final video
+    if temp_clips:
+        merge_command = ["ffmpeg", "-y"]
 
-        # Remove temporary clips
+        # Add each temporary clip to the ffmpeg command
+        for clip in temp_clips:
+            merge_command += ["-i", clip]
+
+        # Define the filter for concatenating the clips
+        merge_command += ["-filter_complex", f"concat=n={len(temp_clips)}:v=1:a=1", output_path]
+
+        # Execute the ffmpeg command to merge the clips
+        os.system(' '.join(merge_command))
+
+        # Clean up temporary clips
         for clip in temp_clips:
             os.remove(clip)
 
-    return output_path
+        return output_path  # Return the path to the merged video
+    else:
+        return "No clips to merge"
+
 
 
 def main():
