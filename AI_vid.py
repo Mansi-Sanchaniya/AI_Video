@@ -82,7 +82,8 @@ def format_transcript(transcript):
         start_time = entry['start']  # Timestamp
         duration = entry['duration']
         text = entry['text']  # Transcript text
-        formatted_transcript.append(f"[{start_time}s - {start_time + duration}s] {text}")
+        end_time = start_time + duration
+        formatted_transcript.append((start_time, end_time, text))
     return formatted_transcript
 
 
@@ -150,6 +151,7 @@ def extract_timestamps_from_section(section):
         return None  # Return None in case of an error
 
 
+# Function to process the query and return the relevant segments in (start, end, text) tuple format
 def process_query(query, stored_transcripts, threshold=0.3):
     if not query:
         st.warning("Please enter a query to search in the transcripts.")
@@ -159,36 +161,25 @@ def process_query(query, stored_transcripts, threshold=0.3):
         st.warning("No transcripts available. Please process a playlist or video first.")
         return []
 
-    all_transcripts_text = []
     segments = []  # List to store the (start, end, text) tuples for relevant segments
     
     for video in stored_transcripts:
         video_info = f"Video: {video['video_url']}\n"
         
-        # Assuming the transcript is a list of entries like:
-        # [start_time - end_time] text
         if isinstance(video['transcript'], list):
             for entry in video['transcript']:
-                # Extract time range and text from the format
-                match = re.match(r"\[(\d+(\.\d+)?)s - (\d+(\.\d+)?)s\] (.+)", entry)
-                if match:
-                    start_time = float(match.group(1))
-                    end_time = float(match.group(3))
-                    text = match.group(5)
-                    all_transcripts_text.append(video_info + text)
+                start_time, end_time, text = entry  # Extract from tuple (start, end, text)
+                
+                # Vectorizing and comparing with the query
+                vectorizer = TfidfVectorizer(stop_words='english')
+                corpus = [text]  # Simplified corpus containing only this segment
+                query_vector = vectorizer.fit_transform([query])
+                text_vector = vectorizer.transform(corpus)
+                cosine_similarities = cosine_similarity(query_vector, text_vector)
 
-                    # If this segment is relevant, store it as a tuple (start, end, text)
-                    vectorizer = TfidfVectorizer(stop_words='english')
-                    corpus = [text]  # Simplified corpus containing only this segment
-                    query_vector = vectorizer.fit_transform([query])
-                    text_vector = vectorizer.transform(corpus)
-                    cosine_similarities = cosine_similarity(query_vector, text_vector)
-
-                    if cosine_similarities[0][0] > threshold:
-                        segments.append((start_time, end_time, text))  # Store as a tuple
-                else:
-                    print(f"Skipping invalid entry format: {entry}")  # Log if entry doesn't match expected format
-
+                if cosine_similarities[0][0] > threshold:
+                    segments.append((start_time, end_time, text))  # Store as tuple (start, end, text)
+                    
     return segments  # Return the list of (start, end, text) tuples
 
 
