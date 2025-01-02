@@ -361,34 +361,21 @@ def main():
                     else:
                         st.error(f"Failed to download: {url}")
 
-    if st.button("Combine and Play"):
+if st.button("Combine and Play"):
         if 'query_output' in st.session_state and st.session_state.query_output:
-            # Initialize an empty list to collect all segments and corresponding video paths
-            segments = []
-            downloaded_video_paths = []
-            
-            # Process each URL (video)
+            for video in st.session_state.stored_transcripts:
+                # Assuming video['transcript'] holds the transcript text or list
+                transcript = video['transcript']
+                segments = extract_segments_from_transcript(transcript)
             for url in input_urls.split(","):
-                url = url.strip()
-                # Download the full video once for each URL
-                downloaded_video_path = download_video(url)
-                downloaded_video_paths.append(downloaded_video_path)  # Store the downloaded video path
-                
-                # Extract relevant segments for this video's transcript
-                for video in st.session_state.stored_transcripts:
-                    if video['video_url'] == url:  # Match video URL to find the correct transcript
-                        transcript = video['transcript']
-                        segments.extend(extract_segments_from_transcript(transcript))  # Collect segments
-    
-            if segments:
-                # Merge the clips and display the final video
-                output_video_path = "output_video.mp4"
-                final_path = clip_and_merge_videos(segments, downloaded_video_paths, output_video_path)
-                st.video(final_path)
-            else:
-                st.error("No segments found. Please process a query first.")
+                    url = url.strip()
+                    downloaded_video_path = download_video(url)
+            output_video_path = "output_video.mp4"
+            final_path = clip_and_merge_videos(st.session_state.query_output,downloaded_video_path, output_video_path)
+            st.video(final_path)
         else:
             st.error("No segments to combine. Process a query first.")
+
 
 if __name__ == "__main__":
     main()
