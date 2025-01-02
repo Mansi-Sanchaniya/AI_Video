@@ -363,10 +363,6 @@ def main():
 
 if st.button("Combine and Play"):
         if 'query_output' in st.session_state and st.session_state.query_output:
-            for video in st.session_state.stored_transcripts:
-                # Assuming video['transcript'] holds the transcript text or list
-                transcript = video['transcript']
-                segments = extract_segments_from_transcript(transcript)
             for url in input_urls.split(","):
                     url = url.strip()
                     downloaded_video_path = download_video(url)
