@@ -60,6 +60,8 @@ def get_transcript(video_url):
         return None
 
 
+# Function to check if a video is under Creative Commons license using YouTube Data API and description
+
 # Function to format the transcript into a readable form
 def format_transcript(transcript):
     formatted_transcript = []
@@ -101,9 +103,7 @@ def process_input(input_urls):
     for video_url in video_urls:
         all_transcripts.append(
             {"video_url": video_url, "transcript": video_chunks.get(video_url, ["No transcript found"])})
-
     return all_transcripts
-
 
 # Function to process the query and extract relevant transcript segments
 def process_query(query, stored_transcripts, threshold=0.3):  # Adjusted threshold for more precise results
@@ -154,11 +154,33 @@ def process_transcripts(input_urls, progress_bar, status_text):
 
     return "Transcripts Extracted!"  # Once complete
 
-
 def main():
     st.set_page_config(page_title="Video & Playlist Processor", page_icon="🎬", layout="wide")
 
-    st.markdown("""<style> .css-1d391kg {padding: 30px;} .stTextArea>div>div>textarea { font-size: 14px; line-height: 1.8; border: 1px solid #ddd; border-radius: 5px; padding: 10px; } .stButton>button { background-color: #ff5c5c; color: white; font-size: 16px; font-weight: bold; padding: 10px 20px; border-radius: 5px; } .stButton>button:hover { background-color: #ff7d7d; color: white; } </style>""", unsafe_allow_html=True)
+    st.markdown("""
+    <style>
+        .css-1d391kg {padding: 30px;}
+        .stTextArea>div>div>textarea {
+            font-size: 14px;
+            line-height: 1.8;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .stButton>button {
+            background-color: #ff5c5c;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+        .stButton>button:hover {
+            background-color: #ff7d7d;
+            color: white;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
     st.title("🎬 Video and Playlist Processor")
 
@@ -236,6 +258,9 @@ def main():
                     progress_bar.progress(100)
                     status_text.text(download_status)
                     if "successfully" in download_status:
-                        st.success(f"Downloaded successfully: {url}")
+                        st.success(f"Downloaded: {url}")
                     else:
-                        st.error(f"Error: {download_status}")
+                        st.error(f"Failed to download: {url}")
+
+if __name__ == "__main__":
+    main()
