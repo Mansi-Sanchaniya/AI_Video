@@ -11,7 +11,6 @@ import json
 import io
 import os
 import cv2
-import re
 from yt_dlp import YoutubeDL
 
 
@@ -167,77 +166,90 @@ def process_transcripts(input_urls, progress_bar, status_text):
 
     return "Transcripts Extracted!"  # Once complete
 
-# Function to clip and merge videos, saving to a temporary file
-def clip_and_merge_videos(segments, video_path):
+def extract_segments_from_transcript(transcript):
+    segments = []
+    try:
+        # Regular expression to match timestamps in the format [start_time - end_time] and text
+        pattern = r'\[(\d+(\.\d+)?)s - (\d+(\.\d+)?)s\]\s*(.*)'
+        
+        # Find all matches of the pattern in the transcript
+        matches = re.findall(pattern, transcript)
+        
+        for match in matches:
+            start_time = float(match[0])  # Start time in seconds
+            end_time = float(match[2])    # End time in seconds
+            text = match[4]               # The text in that segment
+            
+            segments.append((start_time, end_time, text))
+    except Exception as e:
+        print(f"Error extracting segments: {e}")
+    
+    return segments
+
+
+def clip_and_merge_videos(segments, video_path, output_path):
     temp_clips = []
 
-    for segment in segments:
-        # Extract the timestamp using a regular expression
-        match = re.match(r"\[([0-9.]+s) - ([0-9.]+s)\]", segment)
-        if match:
-            start_time_str, end_time_str = match.groups()
+    for start, end, _ in segments:
+        cap = cv2.VideoCapture(video_path)
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        temp_output = f"temp_clip_{len(temp_clips)}.mp4"
 
-            # Convert timestamps from strings to floats (removing the 's' suffix)
-            start = float(start_time_str.replace('s', ''))
-            end = float(end_time_str.replace('s', ''))
+        out = None
+        frame_idx = 0
 
-            cap = cv2.VideoCapture(video_path)
-            fps = int(cap.get(cv2.CAP_PROP_FPS))
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            temp_output = f"temp_clip_{len(temp_clips)}.mp4"
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-            out = None
-            frame_idx = 0
+            current_time = frame_idx / fps
+            if start <= current_time <= end:
+                if out is None:
+                    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    out = cv2.VideoWriter(temp_output, fourcc, fps, (frame_width, frame_height))
+                out.write(frame)
 
+            frame_idx += 1
+            if current_time > end:
+                break
+
+        cap.release()
+        if out:
+            out.release()
+            temp_clips.append(temp_output)
+
+    # Merge all clips manually without ffmpeg
+    if temp_clips:
+        # Open the first clip to get properties
+        cap = cv2.VideoCapture(temp_clips[0])
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        cap.release()
+
+        # Write the merged video file
+        out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
+
+        # Write all the frames from the temporary clips to the output
+        for clip in temp_clips:
+            cap = cv2.VideoCapture(clip)
             while cap.isOpened():
                 ret, frame = cap.read()
                 if not ret:
                     break
-
-                current_time = frame_idx / fps
-                if start <= current_time <= end:
-                    if out is None:
-                        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                        out = cv2.VideoWriter(temp_output, fourcc, fps, (frame_width, frame_height))
-                    out.write(frame)
-
-                frame_idx += 1
-                if current_time > end:
-                    break
-
+                out.write(frame)
             cap.release()
-            if out:
-                out.release()
-                temp_clips.append(temp_output)
 
-    if temp_clips:
-        # Merge all clips into a temporary file
-        merge_command = ["ffmpeg", "-y"]
+        out.release()
+
+        # Remove temporary clips
         for clip in temp_clips:
-            merge_command += ["-i", clip]
-        merge_command += ["-filter_complex", f"concat=n={len(temp_clips)}:v=1:a=1"]
+            os.remove(clip)
 
-        # Create a temporary file for the final video output
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as temp_output_file:
-            output_video_path = temp_output_file.name
-            merge_command.append(output_video_path)
-
-            # Execute the merge command
-            os.system(' '.join(merge_command))
-
-            # Clean up temporary clip files
-            for clip in temp_clips:
-                os.remove(clip)
-
-        return output_video_path
-
-    else:
-        # Return an error message if no clips were processed
-        return "Error: No relevant segments were found to create clips."
-
-
-
+    return output_path
 
 def main():
     st.set_page_config(page_title="Video & Playlist Processor", page_icon="🎬", layout="wide")
@@ -351,16 +363,32 @@ def main():
 
     if st.button("Combine and Play"):
         if 'query_output' in st.session_state and st.session_state.query_output:
+            # Initialize an empty list to collect all segments and corresponding video paths
+            segments = []
+            downloaded_video_paths = []
+            
+            # Process each URL (video)
             for url in input_urls.split(","):
-                    url = url.strip()
-                    download_status, downloaded_video_path = download_video(url)
-                    if "successfully" in download_status and downloaded_video_path:
-                        output_video_path = clip_and_merge_videos(st.session_state.query_output, downloaded_video_path)
-                        if output_video_path:
-                            st.video(output_video_path)
-                            os.remove(output_video_path)  # Cleanup after displaying the video
-                        else:
-                            st.error("Video processing failed.")
+                url = url.strip()
+                # Download the full video once for each URL
+                downloaded_video_path = download_video(url)
+                downloaded_video_paths.append(downloaded_video_path)  # Store the downloaded video path
+                
+                # Extract relevant segments for this video's transcript
+                for video in st.session_state.stored_transcripts:
+                    if video['video_url'] == url:  # Match video URL to find the correct transcript
+                        transcript = video['transcript']
+                        segments.extend(extract_segments_from_transcript(transcript))  # Collect segments
+    
+            if segments:
+                # Merge the clips and display the final video
+                output_video_path = "output_video.mp4"
+                final_path = clip_and_merge_videos(segments, downloaded_video_paths, output_video_path)
+                st.video(final_path)
+            else:
+                st.error("No segments found. Please process a query first.")
+        else:
+            st.error("No segments to combine. Process a query first.")
 
 if __name__ == "__main__":
     main()
