@@ -74,15 +74,16 @@ def get_transcript(video_url):
 
 # Function to check if a video is under Creative Commons license using YouTube Data API and description
 
+# Function to format the transcript into a readable form
 def format_transcript(transcript):
     formatted_transcript = []
     for entry in transcript:
         start_time = entry['start']  # Timestamp
         duration = entry['duration']
-        end_time = start_time + duration  # Calculate end time
         text = entry['text']  # Transcript text
-        formatted_transcript.append([start_time, end_time, text])  # Return as tuple
+        formatted_transcript.append(f"[{start_time}s - {start_time + duration}s] {text}")
     return formatted_transcript
+
 
 # Function to process input (multiple playlists or individual videos) and fetch transcripts for all videos
 def process_input(input_urls):
@@ -116,7 +117,8 @@ def process_input(input_urls):
             {"video_url": video_url, "transcript": video_chunks.get(video_url, ["No transcript found"])})
     return all_transcripts
 
-def process_query(query, stored_transcripts, threshold=0.3):
+# Function to process the query and extract relevant transcript segments
+def process_query(query, stored_transcripts, threshold=0.3):  # Adjusted threshold for more precise results
     if not query:
         st.warning("Please enter a query to search in the transcripts.")
         return []
@@ -144,14 +146,9 @@ def process_query(query, stored_transcripts, threshold=0.3):
     relevant_sections = []
     for idx, score in enumerate(cosine_similarities[0]):
         if score > threshold:  # Only include sections that pass the similarity threshold
-            # Extract the actual start_time, end_time, and text from the original transcript data
-            video = stored_transcripts[idx]
-            transcript = video['transcript'][idx]  # Get the exact transcript segment
-            start_time, end_time, text = transcript
-            relevant_sections.append([start_time, end_time, text])  # Append the whole segment
+            relevant_sections.append(corpus[idx])
 
     return relevant_sections
-
 
 
 # Simulating your process functions for this demonstration
@@ -215,7 +212,6 @@ def clip_and_merge_videos(segments, video_path, output_path):
             os.remove(clip)
 
     return output_path
-
 
 def main():
     st.set_page_config(page_title="Video & Playlist Processor", page_icon="🎬", layout="wide")
