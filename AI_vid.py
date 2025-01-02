@@ -236,6 +236,7 @@ def clip_and_merge_videos(segments, video_path, output_filename):
     st.write(f"Value of st.session_state.query_output: {segments}")
 
     for segment in segments:
+        st.text("Entered loop")
         # Extract the video URL, start and end times
         url, start_time, end_time = segment
         st.text(f"{url} {start_time} {end_time}")
