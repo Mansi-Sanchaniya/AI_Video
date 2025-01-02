@@ -201,8 +201,24 @@ def extract_timestamps_from_section(section):
         print(f"Error extracting timestamps from section '{section}'. Exception: {e}")
         return None  # Return None in case of an error
 
+def extract_video_segments(input_string):
+    # This pattern looks for YouTube URLs with timestamps in the format of [start_time - end_time]
+    pattern = r"(https://www\.youtube\.com/watch\?v=[\w-]+)\s*\[([\d\.]+s)\s*-\s*([\d\.]+s)\]"
+    
+    # Find all matching segments
+    matches = re.findall(pattern, input_string)
+    
+    video_segments = []
+    
+    # For each match, process the video URL and timestamps
+    for match in matches:
+        url, start, end = match
+        start_time = float(start[:-1])  # Remove the 's' and convert to float
+        end_time = float(end[:-1])      # Remove the 's' and convert to float
+        video_segments.append((url, start_time, end_time))
+    
+    return video_segments
 
-# Function to clip and merge videos based on the timestamps (without ffmpeg)
 def clip_and_merge_videos(segments, video_path, output_filename):
     st.text("Entered clip_and_merge_videos function")
     temp_dir = "temp_videos"  # Name of the temporary directory
@@ -217,58 +233,54 @@ def clip_and_merge_videos(segments, video_path, output_filename):
     temp_clips = []
     st.write(f"Type of st.session_state.query_output: {type(segments)}")
     st.write(f"Value of st.session_state.query_output: {segments}")
-    for section in segments:
-        # Extract the start and end timestamps from the section
-        st.text(f"Processing section: {section}")
-        timestamps = extract_timestamps_from_section(section)
-        st.text(f"Extracted timestamps: {timestamps}")
-        
-        if timestamps:
-            start_time, end_time = timestamps
 
-            # Open the video using OpenCV
-            cap = cv2.VideoCapture(video_path)
-            fps = int(cap.get(cv2.CAP_PROP_FPS))
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    for segment in segments:
+        # Extract the video URL, start and end times
+        url, start_time, end_time = segment
 
-            # Define the output path for the temporary video clip
-            temp_output = f"temp_clip_{len(temp_clips)}.mp4"
+        # Open the video using OpenCV
+        cap = cv2.VideoCapture(url)
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 
-            out = None
-            frame_idx = 0
+        # Define the output path for the temporary video clip
+        temp_output = f"temp_clip_{len(temp_clips)}.mp4"
 
-            # Read and process the video frames
-            while cap.isOpened():
-                ret, frame = cap.read()
-                if not ret:
-                    break
+        out = None
+        frame_idx = 0
 
-                # Get the current time in seconds from the frame index
-                current_time = frame_idx / fps
+        # Read and process the video frames
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-                # Check if the current time falls within the segment's start and end times
-                if start_time <= current_time <= end_time:
-                    if out is None:
-                        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                        out = cv2.VideoWriter(temp_output, fourcc, fps, (frame_width, frame_height))
-                        st.text(f"Initialized writer for clip: {temp_output}")
+            # Get the current time in seconds from the frame index
+            current_time = frame_idx / fps
 
-                    # Write the frame to the temporary video clip
-                    out.write(frame)
+            # Check if the current time falls within the segment's start and end times
+            if start_time <= current_time <= end_time:
+                if out is None:
+                    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    out = cv2.VideoWriter(temp_output, fourcc, fps, (frame_width, frame_height))
+                    st.text(f"Initialized writer for clip: {temp_output}")
 
-                frame_idx += 1
+                # Write the frame to the temporary video clip
+                out.write(frame)
 
-                # Stop once we surpass the end time
-                if current_time > end_time:
-                    break
+            frame_idx += 1
 
-            # Release the video capture and output objects
-            cap.release()
-            if out:
-                out.release()
-                temp_clips.append(temp_output)  # Add the temporary clip to the list
-                st.text(f"Saved temporary clip: {temp_output}")
+            # Stop once we surpass the end time
+            if current_time > end_time:
+                break
+
+        # Release the video capture and output objects
+        cap.release()
+        if out:
+            out.release()
+            temp_clips.append(temp_output)  # Add the temporary clip to the list
+            st.text(f"Saved temporary clip: {temp_output}")
 
     # Merge all temporary clips into the final video using OpenCV
     if temp_clips:
@@ -305,7 +317,6 @@ def clip_and_merge_videos(segments, video_path, output_filename):
     else:
         st.text("No clips to merge")
         return "No clips to merge"
-
 
 
 
@@ -427,9 +438,10 @@ def main():
                     url = url.strip()
                     download_status, downloaded_video_paths = download_video(url)  # Get the path of the downloaded video
                     downloaded_video_path.append(downloaded_video_paths)
-            
+            video_segments = extract_video_segments(st.session_state.query_output)
+            status_text.text("Processing query...")
             output_filename = "final_video.mp4"
-            final_path = clip_and_merge_videos(st.session_state.query_output,downloaded_video_path, output_filename)
+            final_path = clip_and_merge_videos(video_segments,downloaded_video_path, output_filename)
             # Check if the final video file exists
             if os.path.exists(final_path) and os.path.getsize(final_path) > 0:
                 st.success("Final video created successfully!")
