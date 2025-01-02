@@ -36,7 +36,7 @@ def download_video(url):
             ydl.download([url])
             download_status = "Video downloaded successfully!"  # Set the success status
             # Prepare the full path of the downloaded video (fixing path issue)
-            downloaded_video_path = os.path.join(temp_dir, f"{ydl.prepare_filename(ydl.extract_info(url, download=False))}")
+            downloaded_video_path = os.path.join(temp_dir, f"{(ydl.extract_info(url, download=False))}")
             st.success(download_status)
         except Exception as e:
             download_status = f"Error downloading video: {str(e)}"  # Set the error message
