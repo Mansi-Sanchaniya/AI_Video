@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import json
 import io
+import re
 import os
 import cv2
 from yt_dlp import YoutubeDL
