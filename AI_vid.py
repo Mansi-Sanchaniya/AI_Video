@@ -13,38 +13,26 @@ import os
 from yt_dlp import YoutubeDL
 
 
+# Function to download a YouTube video using yt-dlp and a cookie file
 def download_video(url):
     download_status = ""  # Initialize download_status to avoid referencing undefined variable
 
     # Set up yt-dlp options
     ydl_opts = {
-        'outtmpl': '%(title)s.%(ext)s',
-        'format': 'best',
-        'verbose': True,  # Enable verbose output
+        'outtmpl': '%(title)s.%(ext)s',  # Output file name pattern
     }
-
 
     # Use yt-dlp to download the video
     with YoutubeDL(ydl_opts) as ydl:
         try:
-            result = ydl.download([url])
-            # Check if the result is an integer (success status code) or a list (video info)
-            if isinstance(result, int):
-                download_status = f"Download failed with error code: {result}"  # Handle error code
-                st.error(download_status)  # Display error message
-                return None
-            # If successful, try to extract the filename
-            video_file = ydl.prepare_filename(ydl.extract_info(url, download=False))
-            download_status = f"Video downloaded successfully! Playing video: {video_file}"  # Set the success status
+            ydl.download([url])
+            download_status = "Video downloaded successfully!"  # Set the success status
             st.success(download_status)  # Display success message
-            return video_file  # Return the video file path for playback
         except Exception as e:
             download_status = f"Error downloading video: {str(e)}"  # Set the error message
             st.error(download_status)  # Display error message
 
-    return None  # Return None if an error occurs
-
-
+    return download_status  # Return the status for further checking if needed
 
 
 # Function to get video URLs from multiple playlists or individual video links
@@ -71,8 +59,6 @@ def get_transcript(video_url):
     except Exception as e:
         return None
 
-
-# Function to check if a video is under Creative Commons license using YouTube Data API and description
 
 # Function to format the transcript into a readable form
 def format_transcript(transcript):
@@ -115,7 +101,9 @@ def process_input(input_urls):
     for video_url in video_urls:
         all_transcripts.append(
             {"video_url": video_url, "transcript": video_chunks.get(video_url, ["No transcript found"])})
+
     return all_transcripts
+
 
 # Function to process the query and extract relevant transcript segments
 def process_query(query, stored_transcripts, threshold=0.3):  # Adjusted threshold for more precise results
@@ -166,33 +154,11 @@ def process_transcripts(input_urls, progress_bar, status_text):
 
     return "Transcripts Extracted!"  # Once complete
 
+
 def main():
     st.set_page_config(page_title="Video & Playlist Processor", page_icon="🎬", layout="wide")
 
-    st.markdown("""
-    <style>
-        .css-1d391kg {padding: 30px;}
-        .stTextArea>div>div>textarea {
-            font-size: 14px;
-            line-height: 1.8;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 10px;
-        }
-        .stButton>button {
-            background-color: #ff5c5c;
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            padding: 10px 20px;
-            border-radius: 5px;
-        }
-        .stButton>button:hover {
-            background-color: #ff7d7d;
-            color: white;
-        }
-    </style>
-    """, unsafe_allow_html=True)
+    st.markdown("""<style> .css-1d391kg {padding: 30px;} .stTextArea>div>div>textarea { font-size: 14px; line-height: 1.8; border: 1px solid #ddd; border-radius: 5px; padding: 10px; } .stButton>button { background-color: #ff5c5c; color: white; font-size: 16px; font-weight: bold; padding: 10px 20px; border-radius: 5px; } .stButton>button:hover { background-color: #ff7d7d; color: white; } </style>""", unsafe_allow_html=True)
 
     st.title("🎬 Video and Playlist Processor")
 
@@ -257,7 +223,7 @@ def main():
         st.subheader("Relevant Output for Your Query")
         st.text_area("Query Output", st.session_state.query_output, height=300, key="query_output_area")
 
-    if input_urls and query:
+    if input_urls:
         with col1:
             if st.button("Download Video(s)"):
                 progress_bar = col2.progress(0, text="Starting video download. Please hold...")
@@ -266,13 +232,10 @@ def main():
                 for url in input_urls.split(","):
                     url = url.strip()
                     status_text.text(f"Downloading video from {url}...")
-                    video_file = download_video(url)
+                    download_status = download_video(url)
                     progress_bar.progress(100)
-                    status_text.text(f"Download complete. Playing video: {video_file}")
-                    if video_file and os.path.exists(video_file):
-                        st.video(video_file)  # Play the video once it is downloaded
+                    status_text.text(download_status)
+                    if "successfully" in download_status:
+                        st.success(f"Downloaded successfully: {url}")
                     else:
-                        st.error(f"Error: Failed to download video from {url}")
-
-if __name__ == "__main__":
-    main()
+                        st.error(f"Error: {download_status}")
