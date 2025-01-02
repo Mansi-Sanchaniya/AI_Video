@@ -347,6 +347,11 @@ def clip_and_merge_videos(segments, video_path, output_filename):
         out.release()
         st.text(f"Final video saved at: {output_path}")
 
+        # Clean up temporary clips
+        for clip in temp_clips:
+            os.remove(clip)
+            st.text(f"Deleted temporary clip: {clip}")
+
         return output_path  # Return the path to the merged video
     else:
         st.text("No clips to merge")
