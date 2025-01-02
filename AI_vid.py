@@ -11,6 +11,7 @@ import json
 import io
 import os
 import cv2
+import re
 from yt_dlp import YoutubeDL
 
 
@@ -169,36 +170,45 @@ def process_transcripts(input_urls, progress_bar, status_text):
 def clip_and_merge_videos(segments, video_path, output_path):
     temp_clips = []
 
-    for start, end, _ in segments:
-        cap = cv2.VideoCapture(video_path)
-        fps = int(cap.get(cv2.CAP_PROP_FPS))
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        temp_output = f"temp_clip_{len(temp_clips)}.mp4"
+    for segment in segments:
+        # Extract the timestamp using a regular expression
+        match = re.match(r"\[([0-9.]+s) - ([0-9.]+s)\]", segment)
+        if match:
+            start_time_str, end_time_str = match.groups()
 
-        out = None
-        frame_idx = 0
+            # Convert timestamps from strings to floats (removing the 's' suffix)
+            start = float(start_time_str.replace('s', ''))
+            end = float(end_time_str.replace('s', ''))
 
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
+            cap = cv2.VideoCapture(video_path)
+            fps = int(cap.get(cv2.CAP_PROP_FPS))
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            temp_output = f"temp_clip_{len(temp_clips)}.mp4"
 
-            current_time = frame_idx / fps
-            if start <= current_time <= end:
-                if out is None:
-                    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    out = cv2.VideoWriter(temp_output, fourcc, fps, (frame_width, frame_height))
-                out.write(frame)
+            out = None
+            frame_idx = 0
 
-            frame_idx += 1
-            if current_time > end:
-                break
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret:
+                    break
 
-        cap.release()
-        if out:
-            out.release()
-            temp_clips.append(temp_output)
+                current_time = frame_idx / fps
+                if start <= current_time <= end:
+                    if out is None:
+                        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                        out = cv2.VideoWriter(temp_output, fourcc, fps, (frame_width, frame_height))
+                    out.write(frame)
+
+                frame_idx += 1
+                if current_time > end:
+                    break
+
+            cap.release()
+            if out:
+                out.release()
+                temp_clips.append(temp_output)
 
     # Merge all clips
     if temp_clips:
@@ -212,6 +222,7 @@ def clip_and_merge_videos(segments, video_path, output_path):
             os.remove(clip)
 
     return output_path
+
 
 def main():
     st.set_page_config(page_title="Video & Playlist Processor", page_icon="🎬", layout="wide")
