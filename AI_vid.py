@@ -9,7 +9,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import json
 import io
-import re
 import os
 import cv2
 from yt_dlp import YoutubeDL
@@ -82,8 +81,7 @@ def format_transcript(transcript):
         start_time = entry['start']  # Timestamp
         duration = entry['duration']
         text = entry['text']  # Transcript text
-        end_time = start_time + duration
-        formatted_transcript.append((start_time, end_time, text))
+        formatted_transcript.append(f"[{start_time}s - {start_time + duration}s] {text}")
     return formatted_transcript
 
 
@@ -119,40 +117,8 @@ def process_input(input_urls):
             {"video_url": video_url, "transcript": video_chunks.get(video_url, ["No transcript found"])})
     return all_transcripts
 
-
-def extract_timestamps_from_section(section):
-    try:
-        # Strip any leading/trailing whitespaces
-        section = section.strip()
-
-        # Check if the section contains timestamp information in the correct format
-        if '[' not in section or ']' not in section:
-            return None  # Skip sections that do not contain timestamps in '[start_time - end_time]' format
-
-        # Extract the timestamp part of the section (the part inside the brackets)
-        timestamp_part = section[section.find('[') + 1:section.find(']')].strip()  # Extract content inside brackets
-        times = timestamp_part.split(" - ")
-
-        # Ensure two timestamps are found in the section
-        if len(times) != 2:
-            return None  # Return None to skip this section
-
-        # Clean timestamps and remove any unnecessary decimal precision
-        start_time = float(times[0].strip().replace("s", ""))
-        end_time = float(times[1].strip().replace("s", ""))
-
-        # Round to a reasonable precision (e.g., 2 decimal places)
-        start_time = round(start_time, 2)
-        end_time = round(end_time, 2)
-
-        return start_time, end_time
-    except Exception as e:
-        print(f"Error extracting timestamps from section '{section}'. Exception: {e}")
-        return None  # Return None in case of an error
-
-
-# Function to process the query and return the relevant segments in (start, end, text) tuple format
-def process_query(query, stored_transcripts, threshold=0.3):
+# Function to process the query and extract relevant transcript segments
+def process_query(query, stored_transcripts, threshold=0.3):  # Adjusted threshold for more precise results
     if not query:
         st.warning("Please enter a query to search in the transcripts.")
         return []
@@ -161,26 +127,28 @@ def process_query(query, stored_transcripts, threshold=0.3):
         st.warning("No transcripts available. Please process a playlist or video first.")
         return []
 
-    segments = []  # List to store the (start, end, text) tuples for relevant segments
-    
+    all_transcripts_text = []
     for video in stored_transcripts:
         video_info = f"Video: {video['video_url']}\n"
-        
         if isinstance(video['transcript'], list):
-            for entry in video['transcript']:
-                start_time, end_time, text = entry  # Extract from tuple (start, end, text)
-                
-                # Vectorizing and comparing with the query
-                vectorizer = TfidfVectorizer(stop_words='english')
-                corpus = [text]  # Simplified corpus containing only this segment
-                query_vector = vectorizer.fit_transform([query])
-                text_vector = vectorizer.transform(corpus)
-                cosine_similarities = cosine_similarity(query_vector, text_vector)
+            for line in video['transcript']:
+                all_transcripts_text.append(video_info + line)
 
-                if cosine_similarities[0][0] > threshold:
-                    segments.append((start_time, end_time, text))  # Store as tuple (start, end, text)
-                    
-    return segments  # Return the list of (start, end, text) tuples
+    vectorizer = TfidfVectorizer(stop_words='english')
+    corpus = all_transcripts_text
+    query_vector = vectorizer.fit_transform([query])
+    text_vectors = vectorizer.transform(corpus)
+
+    # Calculate cosine similarity using sklearn's cosine_similarity (which works directly with sparse matrices)
+    cosine_similarities = cosine_similarity(query_vector, text_vectors)
+
+    # Now, cosine_similarities will be a 2D numpy array where we can access the first row (the result for the query)
+    relevant_sections = []
+    for idx, score in enumerate(cosine_similarities[0]):
+        if score > threshold:  # Only include sections that pass the similarity threshold
+            relevant_sections.append(corpus[idx])
+
+    return relevant_sections
 
 
 # Simulating your process functions for this demonstration
@@ -328,10 +296,9 @@ def main():
                 progress_bar.progress(100, text="Query processed successfully.")
                 status_text.text("Query processed successfully.")
                 if relevant_sections:
-                    st.session_state.query_output = "\n".join([f"{start_time}s - {end_time}s: {text}" for start_time, end_time, text in relevant_sections])
+                    st.session_state.query_output = "\n".join(relevant_sections)
                 else:
-                    st.session_state.query_output = "No relevant sections found for the query."
-    
+                    st.session_state.query_output = "No relevant content found for the query."
 
     if 'query_output' in st.session_state and st.session_state.query_output:
         st.subheader("Relevant Output for Your Query")
