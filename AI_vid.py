@@ -18,27 +18,6 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-import shutil
-
-def delete_temp_files():
-    temp_dir = "temp_videos"  # Temporary directory to store video clips
-
-    # Check if the directory exists
-    if os.path.exists(temp_dir):
-        # Remove all files inside the directory
-        for filename in os.listdir(temp_dir):
-            file_path = os.path.join(temp_dir, filename)
-            try:
-                if os.path.isfile(file_path):
-                    os.remove(file_path)  # Remove file
-                elif os.path.isdir(file_path):
-                    shutil.rmtree(file_path)  # Remove directory if present
-                print(f"Deleted: {file_path}")
-            except Exception as e:
-                print(f"Error deleting file {file_path}: {str(e)}")
-    else:
-        print(f"{temp_dir} does not exist. No files to delete.")
-
 # Function to download a YouTube video using yt-dlp and a cookie file
 def download_video(url):
     download_status = ""  # Initialize download_status to avoid referencing undefined variable
