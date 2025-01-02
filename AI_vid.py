@@ -117,8 +117,7 @@ def process_input(input_urls):
             {"video_url": video_url, "transcript": video_chunks.get(video_url, ["No transcript found"])})
     return all_transcripts
 
-
- def process_query(query, stored_transcripts, threshold=0.3):  # Adjusted threshold for more precise results
+def process_query(query, stored_transcripts, threshold=0.3):  # Adjusted threshold for more precise results
     if not query:
         st.warning("Please enter a query to search in the transcripts.")
         return []
