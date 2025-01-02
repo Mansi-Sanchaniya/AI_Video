@@ -456,7 +456,7 @@ def main():
                         st.text(f"Downloaded video: {video_path}")  # Get the path of the downloaded video
             video_segments = extract_video_segments(st.session_state.query_output)
             output_filename = "final_video.mp4"
-            final_path = clip_and_merge_videos(video_segments,downloaded_video_path, output_filename)
+            final_path = clip_and_merge_videos(video_segments,video_path, output_filename)
             # Check if the final video file exists
             if os.path.exists(final_path) and os.path.getsize(final_path) > 0:
                 st.success("Final video created successfully!")
